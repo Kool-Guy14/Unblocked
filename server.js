@@ -127,7 +127,7 @@ function load(){try{return JSON.parse(fs.readFileSync(DB,"utf8"))}catch{return {
 let db=load();
 db.messages??=[];db.requests??=[];db.trades??={};db.users??={};db.keys??={};db.sessions??={};db.announcement??=null;db.luck??={multiplier:1,expiresAt:0};
 function save(){fs.writeFileSync(DB,JSON.stringify(db,null,2))}
-function json(res,c,d){res.writeHead(c,{"Content-Type":"application/json","Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type, Authorization","Cache-Control":"no-store"});res.end(JSON.stringify(d))}
+function json(res,c,d){res.writeHead(c,{"Content-Type":"application/json","Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"GET, POST, OPTIONS","Access-Control-Allow-Headers":"Content-Type, Authorization","Cache-Control":"no-store"});res.end(JSON.stringify(d))}
 function body(req){return new Promise((ok,no)=>{let s="";req.on("data",x=>s+=x);req.on("end",()=>{try{ok(s?JSON.parse(s):{})}catch(e){no(e)}})})}
 function id(){return crypto.randomBytes(8).toString("hex")}
 function token(){return crypto.randomBytes(32).toString("hex")}
@@ -143,7 +143,7 @@ function fuse(items){let counts={};items.forEach(x=>counts[x.Rarity]=(counts[x.R
 function validName(s){return typeof s==="string"&&/^[A-Za-z0-9_]{3,20}$/.test(s)}
 function route(req,res){
  const u=new URL(req.url,`http://${req.headers.host}`);
- if(req.method==="OPTIONS"){res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type, Authorization"});return res.end()}
+ if(req.method==="OPTIONS"){res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"GET, POST, OPTIONS","Access-Control-Allow-Headers":"Content-Type, Authorization"});return res.end()}
  if(u.pathname==="/api/register"&&req.method==="POST")return body(req).then(b=>{if(!validName(b.username)||typeof b.password!=="string"||b.password.length<6)return json(res,400,{error:"Invalid username or password"});if(db.users[b.username])return json(res,409,{error:"Username already exists"});let hp=hash(b.password),now=Date.now();db.users[b.username]={username:b.username,password:hp,createdAt:now,keyRedeemed:false,inventory:[],stats:{plinkoBest:0,lockBest:0}};let t=token();db.sessions[t]=b.username;save();json(res,200,{token:t,user:clean(db.users[b.username])})})
  if(u.pathname==="/api/login"&&req.method==="POST")return body(req).then(b=>{let x=db.users[b.username];if(!x||!check(b.password,x.password))return json(res,401,{error:"Invalid login"});let t=token();db.sessions[t]=x.username;save();json(res,200,{token:t,user:clean(x)})})
  if(u.pathname==="/api/redeem"&&req.method==="POST")return body(req).then(b=>{let user=auth(req);if(!user)return json(res,401,{error:"Login required"});let k=db.keys[b.key];if(!k)return json(res,400,{error:"Invalid key"});if(k.used)return json(res,400,{error:"this key is out of stock."});if(k.expiresAt&&k.expiresAt<=Date.now())return json(res,400,{error:"Key expired"});if(user.keyRedeemed)return json(res,400,{error:"This account already has a redeemed key"});k.used=true;k.redeemedBy=user.username;k.redeemedAt=Date.now();user.keyRedeemed=true;user.redeemedKey=b.key;user.keyCreatedAt=k.createdAt;user.keyExpiresAt=k.expiresAt;save();json(res,200,{user:clean(user)})})
