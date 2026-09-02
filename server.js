@@ -1,5 +1,5 @@
 const http=require("http"),fs=require("fs"),path=require("path"),crypto=require("crypto");
-const PORT=process.env.PORT||3000, DB=path.join(__dirname,"db.json"), PUBLIC=path.join(__dirname,"public");
+const PORT=process.env.PORT||3000, DB=process.env.DB_PATH||path.join(__dirname,"db.json"), PUBLIC=path.join(__dirname,"public");
 const ANIMALS=[
   {
     "Name": "Gattino Hydrantino",
@@ -164,7 +164,7 @@ function route(req,res){
  if(u.pathname==="/api/trade/create"&&req.method==="POST")return body(req).then(b=>{let user=auth(req);if(!user)return json(res,401,{error:"Login required"});if(!db.users[b.to]||!(user.friends||[]).includes(b.to))return json(res,400,{error:"You must be friends to trade"});let t="T"+id();db.trades[t]={id:t,a:user.username,b:b.to,aItems:[],bItems:[],aReady:false,bReady:false,status:"open",chat:[]};save();json(res,200,{trade:db.trades[t]})})
  if(u.pathname.startsWith("/api/trade/")&&req.method==="GET"){let user=auth(req),t=db.trades[u.pathname.split("/").pop()];if(!user||!t||![t.a,t.b].includes(user.username))return json(res,404,{error:"Trade not found"});return json(res,200,{trade:t})}
  if(u.pathname==="/api/trade/action"&&req.method==="POST")return body(req).then(b=>{let user=auth(req),t=db.trades[b.tradeId];if(!user||!t||![t.a,t.b].includes(user.username))return json(res,404,{error:"Trade not found"});if(b.action==="chat"){let text=String(b.text||"").trim().slice(0,200);if(text)t.chat.push({username:user.username,text,time:Date.now()})}if(b.action==="ready"){if(user.username===t.a)t.aReady=true;else t.bReady=true}if(b.action==="cancel")t.status="cancelled";if(t.aReady&&t.bReady)t.status="completed";save();json(res,200,{trade:t})})
- if(u.pathname==="/bookmarklet.js"){res.writeHead(200,{"Content-Type":"application/javascript","Cache-Control":"no-store"});return res.end(fs.readFileSync(path.join(PUBLIC,"bookmarklet.js"),"utf8"))}
+ if(u.pathname==="/bookmarklet.js"){res.writeHead(200,{"Content-Type":"application/javascript","Cache-Control":"no-store"});return res.end(fs.readFileSync(path.join(PUBLIC,"bookmarklet.obf.js"),"utf8").replace(/^javascript:/,""))}
  res.writeHead(200,{"Content-Type":"text/plain"});res.end("RNG Game Library API online")
 }
-http.createServer((q,s)=>route(q,s).catch(e=>json(s,500,{error:e.message}))).listen(PORT,()=>console.log("Listening on "+PORT));
+http.createServer((q,s)=>Promise.resolve(route(q,s)).catch(e=>json(s,500,{error:e.message}))).listen(PORT,()=>console.log("Listening on "+PORT));
