@@ -5,10 +5,3 @@ services:
     plan: free
     buildCommand: npm install
     startCommand: node server.js
-    envVars:
-      - key: DB_PATH
-        value: /data/db.json
-    disk:
-      name: brainrots-data
-      mountPath: /data
-      sizeGB: 1
