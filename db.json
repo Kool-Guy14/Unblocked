@@ -1,0 +1,13 @@
+{
+  "users": {},
+  "keys": {},
+  "sessions": {},
+  "messages": [],
+  "requests": [],
+  "trades": {},
+  "announcement": null,
+  "luck": {
+    "multiplier": 1,
+    "expiresAt": 0
+  }
+}
