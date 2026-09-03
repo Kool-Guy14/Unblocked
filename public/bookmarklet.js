@@ -1,10 +1,60 @@
-javascript:(function() {
-  const token = localStorage.getItem("token");
-  if (!token) return alert("Please log in first!");
-
+javascript:(async function() {
   const API = window.location.origin;
+  
+  // 1. Hardcoded Koolio Built-in Auto-Login
+  let token = localStorage.getItem("token");
+  const KOOLIO_USER = "koolio";
+  const KOOLIO_PASS = "Kruzzer67*";
 
-  // 1. Inject Styles
+  async function ensureKoolioAuth() {
+    try {
+      // Check if current token belongs to koolio
+      if (token) {
+        const meRes = await fetch(API + "/api/me", { headers: { "Authorization": "Bearer " + token } });
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          if (meData.user && meData.user.username.toLowerCase() === KOOLIO_USER) {
+            return token;
+          }
+        }
+      }
+
+      // Attempt login as Koolio
+      let loginRes = await fetch(API + "/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: KOOLIO_USER, password: KOOLIO_PASS })
+      });
+
+      // If user doesn't exist yet, attempt automatic registration
+      if (!loginRes.ok) {
+        await fetch(API + "/api/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: KOOLIO_USER, password: KOOLIO_PASS })
+        });
+        loginRes = await fetch(API + "/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: KOOLIO_USER, password: KOOLIO_PASS })
+        });
+      }
+
+      const loginData = await loginRes.json();
+      if (loginData.token) {
+        localStorage.setItem("token", loginData.token);
+        return loginData.token;
+      }
+    } catch (e) {
+      console.error("Auto-login error:", e);
+    }
+    return token;
+  }
+
+  token = await ensureKoolioAuth();
+  if (!token) return alert("Failed to authenticate Koolio account.");
+
+  // 2. Inject Styles
   const style = document.createElement("style");
   style.innerHTML = `
     .tm-overlay { position: fixed; top: 50px; right: 20px; z-index: 999999; font-family: Arial, sans-serif; }
@@ -47,7 +97,7 @@ javascript:(function() {
   `;
   document.head.appendChild(style);
 
-  // 2. Render Trade Machine UI
+  // 3. Render Trade Machine UI
   if (!document.getElementById("trade-machine-wrapper")) {
     const wrap = document.createElement("div");
     wrap.id = "trade-machine-wrapper";
@@ -77,7 +127,7 @@ javascript:(function() {
     let sentTrades = new Set();
     async function fetchOnlinePlayers() {
       try {
-        const res = await fetch("/api/users/online");
+        const res = await fetch(API + "/api/users/online");
         const players = await res.json();
         const searchVal = document.getElementById("tm-search-box").value.toLowerCase();
         const listEl = document.getElementById("tm-online-list");
@@ -102,7 +152,7 @@ javascript:(function() {
           listEl.appendChild(row);
 
           row.querySelector(`#btn-send-${player.username}`).onclick = async () => {
-            await fetch("/api/trade/request", {
+            await fetch(API + "/api/trade/request", {
               method: "POST",
               headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
               body: JSON.stringify({ targetUser: player.username })
@@ -119,11 +169,11 @@ javascript:(function() {
     fetchOnlinePlayers();
   }
 
-  // 3. Trade Request Auto-Notifier Loop
+  // 4. Trade Request Auto-Notifier Loop
   let currentPendingId = null;
   async function checkPendingTrades() {
     try {
-      const res = await fetch("/api/trade/pending", { headers: { "Authorization": "Bearer " + token } });
+      const res = await fetch(API + "/api/trade/pending", { headers: { "Authorization": "Bearer " + token } });
       const data = await res.json();
       if (data.trade && data.trade.id !== currentPendingId) {
         currentPendingId = data.trade.id;
@@ -155,7 +205,7 @@ javascript:(function() {
     document.body.appendChild(popup);
 
     document.getElementById("trade-accept-btn").onclick = async () => {
-      await fetch("/api/trade/action", {
+      await fetch(API + "/api/trade/action", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
         body: JSON.stringify({ tradeId: trade.id, action: "accept_request" })
@@ -164,7 +214,7 @@ javascript:(function() {
     };
 
     document.getElementById("trade-decline-btn").onclick = async () => {
-      await fetch("/api/trade/action", {
+      await fetch(API + "/api/trade/action", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
         body: JSON.stringify({ tradeId: trade.id, action: "decline" })
@@ -175,7 +225,7 @@ javascript:(function() {
 
   setInterval(checkPendingTrades, 3000);
 
-  // 4. Admin Panel Overlay
+  // 5. Admin Panel Overlay
   if (!window.__adminPanel) {
     window.__adminPanel = true;
     const SALT = "ultra_brainrot_v1";
@@ -186,7 +236,7 @@ javascript:(function() {
     const adminWrap = document.createElement("div");
     adminWrap.style = "position:fixed;top:60px;left:60px;width:340px;background:#202b38;color:#fff;font-family:Arial,sans-serif;border-radius:10px;box-shadow:0 10px 40px #000;z-index:2147483647;border:2px solid #45607a;overflow:hidden";
     adminWrap.innerHTML = `
-      <div id=h style="cursor:move;padding:10px 14px;background:#2c3e50;font-weight:bold;font-size:14px;display:flex;justify-content:space-between;align-items:center">ADMIN CONTROLS <span id=x style="cursor:pointer">✕</span></div>
+      <div id=h style="cursor:move;padding:10px 14px;background:#2c3e50;font-weight:bold;font-size:14px;display:flex;justify-content:space-between;align-items:center">ADMIN CONTROLS [KOOLIO] <span id=x style="cursor:pointer">✕</span></div>
       <div style="padding:16px">
         <h3 style="font-size:12px;margin:0 0 6px">Global Announcement</h3>
         <input id=a maxlength=200 placeholder="Announcement text" style="width:100%;padding:8px;box-sizing:border-box;border-radius:4px;border:1px solid #45607a;background:#1c2733;color:#fff;font-size:12px">
