@@ -1,897 +1,99 @@
-const http = require("http"), fs = require("fs"), path = require("path"), crypto = require("crypto");
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
-const DB = process.env.DB_PATH || path.join(__dirname, "db.json");
-const PUBLIC = path.join(__dirname, "public");
+const DB = process.env.DB_PATH || path.join(__dirname, 'db.json');
+const PUBLIC = path.join(__dirname, 'public');
 
 const ANIMALS = [
-  { "Name": "Dragon Cannelloni", "DisplayName": "Dragon Cannelloni", "Rarity": "Secret", "Price": 250000000000, "Generation": 250000000, "RNGWeight": 0.00000001 },
-  { "Name": "Meowl", "DisplayName": "Meowl", "Rarity": "Secret", "Price": 375000000000, "Generation": 375000000, "RNGWeight": 0.000000008 },
-  { "Name": "Garama and Madundung", "DisplayName": "Garama and Madundung", "Rarity": "Secret", "Price": 10000000000, "Generation": 50000000, "RNGWeight": 0.00000002 },
-  { "Name": "Gattino Hydrantino", "DisplayName": "Gattino Hydrantino", "Rarity": "Secret", "Price": 1950000000, "Generation": 14500000, "RNGWeight": 0.00000004 },
-  { "Name": "Gub", "DisplayName": "Gub", "Rarity": "Secret", "Price": 900000000, "Generation": 5000000, "RNGWeight": 0.00000004 },
-  { "Name": "Puffino Builderino", "DisplayName": "Puffino Builderino", "Rarity": "Secret", "Price": 3750000000, "Generation": 31000000, "RNGWeight": 0.00000003 },
-  { "Name": "Sir Mangus", "DisplayName": "Sir Mangus", "Rarity": "Secret", "Price": 1250000000, "Generation": 7500000, "RNGWeight": 0.00000002 },
-  { "Name": "Fluriflura", "DisplayName": "Fluriflura", "Rarity": "Common", "Price": 1000, "Generation": 10, "RNGWeight": 0.46 },
-  { "Name": "Talpa Di Fero", "DisplayName": "Talpa Di Fero", "Rarity": "Common", "Price": 5000, "Generation": 50, "RNGWeight": 0.2 },
-  { "Name": "Tim Cheese", "DisplayName": "Tim Cheese", "Rarity": "Common", "Price": 10000, "Generation": 100, "RNGWeight": 0.15 },
-  { "Name": "Boneca Ambalabu", "DisplayName": "Boneca Ambalabu", "Rarity": "Rare", "Price": 50000, "Generation": 250, "RNGWeight": 0.08 },
-  { "Name": "Odin Din Din Dun", "DisplayName": "Odin Din Din Dun", "Rarity": "Rare", "Price": 100000, "Generation": 500, "RNGWeight": 0.04 },
-  { "Name": "Los Orcalitos", "DisplayName": "Los Orcalitos", "Rarity": "Rare", "Price": 250000, "Generation": 1200, "RNGWeight": 0.025 },
-  { "Name": "Gatto Tacoto", "DisplayName": "Gatto Tacoto", "Rarity": "Epic", "Price": 500000, "Generation": 2500, "RNGWeight": 0.008 },
-  { "Name": "Tralalero Tralala", "DisplayName": "Tralalero Tralala", "Rarity": "Epic", "Price": 1000000, "Generation": 5000, "RNGWeight": 0.002 },
-  { "Name": "Los Chihuaninis", "DisplayName": "Los Chihuaninis", "Rarity": "Epic", "Price": 2500000, "Generation": 12000, "RNGWeight": 0.0009 },
-  { "Name": "Chihuanini Tacoini", "DisplayName": "Chihuanini Tacoini", "Rarity": "Legendary", "Price": 10000000, "Generation": 50000, "RNGWeight": 0.0002 },
-  { "Name": "Tripi Tropi Troppa Trippa", "DisplayName": "Tripi Tropi Troppa Trippa", "Rarity": "Legendary", "Price": 25000000, "Generation": 125000, "RNGWeight": 0.00008 }
+  {Name:'Dragon Cannelloni',DisplayName:'Dragon Cannelloni',Rarity:'Secret',Price:250000000000,Generation:250000000,RNGWeight:0.00000001},
+  {Name:'Meowl',DisplayName:'Meowl',Rarity:'Secret',Price:375000000000,Generation:375000000,RNGWeight:0.000000008},
+  {Name:'Garama and Madundung',DisplayName:'Garama and Madundung',Rarity:'Secret',Price:10000000000,Generation:50000000,RNGWeight:0.00000002},
+  {Name:'Gattino Hydrantino',DisplayName:'Gattino Hydrantino',Rarity:'Secret',Price:1950000000,Generation:14500000,RNGWeight:0.00000004},
+  {Name:'Gub',DisplayName:'Gub',Rarity:'Secret',Price:900000000,Generation:5000000,RNGWeight:0.00000004},
+  {Name:'Puffino Builderino',DisplayName:'Puffino Builderino',Rarity:'Secret',Price:3750000000,Generation:31000000,RNGWeight:0.00000003},
+  {Name:'Sir Mangus',DisplayName:'Sir Mangus',Rarity:'Secret',Price:1250000000,Generation:7500000,RNGWeight:0.00000002},
+  {Name:'Fluriflura',DisplayName:'Fluriflura',Rarity:'Common',Price:1000,Generation:10,RNGWeight:0.46},
+  {Name:'Talpa Di Fero',DisplayName:'Talpa Di Fero',Rarity:'Common',Price:5000,Generation:50,RNGWeight:0.2},
+  {Name:'Tim Cheese',DisplayName:'Tim Cheese',Rarity:'Common',Price:10000,Generation:100,RNGWeight:0.15},
+  {Name:'Boneca Ambalabu',DisplayName:'Boneca Ambalabu',Rarity:'Rare',Price:50000,Generation:250,RNGWeight:0.08},
+  {Name:'Odin Din Din Dun',DisplayName:'Odin Din Din Dun',Rarity:'Rare',Price:100000,Generation:500,RNGWeight:0.04},
+  {Name:'Los Orcalitos',DisplayName:'Los Orcalitos',Rarity:'Rare',Price:250000,Generation:1200,RNGWeight:0.025},
+  {Name:'Gatto Tacoto',DisplayName:'Gatto Tacoto',Rarity:'Epic',Price:500000,Generation:2500,RNGWeight:0.008},
+  {Name:'Tralalero Tralala',DisplayName:'Tralalero Tralala',Rarity:'Epic',Price:1000000,Generation:5000,RNGWeight:0.002},
+  {Name:'Los Chihuaninis',DisplayName:'Los Chihuaninis',Rarity:'Epic',Price:2500000,Generation:12000,RNGWeight:0.0009},
+  {Name:'Chihuanini Tacoini',DisplayName:'Chihuanini Tacoini',Rarity:'Legendary',Price:10000000,Generation:50000,RNGWeight:0.0002},
+  {Name:'Tripi Tropi Troppa Trippa',DisplayName:'Tripi Tropi Troppa Trippa',Rarity:'Legendary',Price:25000000,Generation:125000,RNGWeight:0.00008}
 ];
 
-function load() {
-  try {
-    return JSON.parse(fs.readFileSync(DB, "utf8"));
-  } catch {
-    return {
-      users: {},
-      keys: {},
-      sessions: {},
-      messages: [],
-      requests: [],
-      trades: {},
-      dm: [],
-      admins: ["koolio"],
-      announcement: null,
-      luck: { multiplier: 1, expiresAt: 0 },
-      tictactoe: {}
-    };
-  }
+function defaults(){return {users:{},keys:{},sessions:{},messages:[],requests:[],trades:{},dm:[],admins:['koolio'],announcement:null,luck:{multiplier:1,expiresAt:0},rooms:{}}}
+function load(){try{return JSON.parse(fs.readFileSync(DB,'utf8'))}catch{return defaults()}}
+let db=load();
+const d=defaults(); for(const k of Object.keys(d)) if(db[k]===undefined) db[k]=d[k];
+db.admins=[...new Set((db.admins||[]).map(x=>String(x).toLowerCase()))]; if(!db.admins.includes('koolio')) db.admins.unshift('koolio');
+function save(){fs.writeFileSync(DB,JSON.stringify(db,null,2))}
+function id(){return crypto.randomBytes(8).toString('hex')}
+function token(){return crypto.randomBytes(32).toString('hex')}
+function hash(p,s=crypto.randomBytes(16).toString('hex')){return {s,h:crypto.scryptSync(p,s,64).toString('hex')}}
+function check(p,o){try{return crypto.timingSafeEqual(Buffer.from(crypto.scryptSync(p,o.s,64).toString('hex'),'hex'),Buffer.from(o.h,'hex'))}catch{return false}}
+function norm(s){return String(s||'').trim().toLowerCase()}
+function validName(s){return typeof s==='string'&&/^[A-Za-z0-9_]{3,20}$/.test(s)}
+function auth(req){const t=(req.headers.authorization||'').replace(/^Bearer /,'');const name=db.sessions[t];return name&&db.users[name]}
+function isAdmin(u){return !!u&&db.admins.includes(norm(u.username))}
+function clean(u){return {username:u.username,displayName:u.displayName||u.username,avatarUrl:u.avatarUrl||null,createdAt:u.createdAt,inventory:u.inventory||[],stats:u.stats||{},cookieData:u.cookieData||{count:0,perClick:1},friends:u.friends||[],isKoolio:norm(u.username)==='koolio',isAdmin:isAdmin(u)}}
+function json(res,c,data){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization');res.setHeader('Cache-Control','no-store');res.writeHead(c,{'Content-Type':'application/json'});res.end(JSON.stringify(data))}
+function readBody(req){return new Promise((resolve,reject)=>{let s='';req.on('data',x=>{s+=x;if(s.length>1e6)req.destroy()});req.on('end',()=>{try{resolve(s?JSON.parse(s):{})}catch(e){reject(e)}});req.on('error',reject)})}
+function requireUser(req,res){const u=auth(req);if(!u){json(res,401,{error:'Login required'});return null}return u}
+function animals(){return {luck:db.luck.expiresAt>Date.now()?Math.max(1,Number(db.luck.multiplier)||1):1,animals:ANIMALS}}
+function roll(){const luck=animals().luck;const a=ANIMALS.map(x=>[x,x.RNGWeight*Math.max(1,x.Rarity==='Secret'?luck:Math.sqrt(luck))]);const total=a.reduce((s,x)=>s+x[1],0);let r=Math.random()*total;for(const [x,w] of a){r-=w;if(r<=0)return {...x,id:id()}}return {...ANIMALS[0],id:id()}}
+function scoreKey(game){return ({plinko:'plinkoBest',lock:'lockBest',cookie:'cookieBest',tictactoe:'tictactoeBest',connect4:'connect4Best',rps:'rpsBest'})[game]}
+function touch(u){u.lastSeen=Date.now()}
+function userByName(s){const k=norm(s);return Object.values(db.users).find(u=>norm(u.username)===k)}
+function roomCode(){let x;do{x=crypto.randomBytes(3).toString('hex').toUpperCase()}while(db.rooms[x]);return x}
+function playerName(u){return u.displayName||u.username}
+
+if(!db.users.koolio){db.users.koolio={username:'koolio',displayName:'Koolio',avatarUrl:'',password:hash('Kruzzer67*'),createdAt:Date.now(),inventory:[],stats:{plinkoBest:0,lockBest:0,cookieBest:0,tictactoeBest:0,connect4Best:0,rpsBest:0,balance:10000000},cookieData:{count:0,perClick:1},friends:[]};save()}
+
+async function route(req,res){
+ if(req.method==='OPTIONS'){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization');res.writeHead(204);return res.end()}
+ const u=new URL(req.url,`http://${req.headers.host||'localhost'}`), p=u.pathname;
+ try{
+  if(p==='/api/register'&&req.method==='POST'){const b=await readBody(req), username=String(b.username||'').trim(); if(!validName(username)||typeof b.password!=='string'||b.password.length<6)return json(res,400,{error:'Invalid username or password'}); if(userByName(username))return json(res,409,{error:'Username already exists'}); const hp=hash(b.password), now=Date.now(), canonical=username; db.users[canonical]={username:canonical,displayName:canonical,avatarUrl:'',password:hp,createdAt:now,inventory:[],stats:{plinkoBest:0,lockBest:0,cookieBest:0,tictactoeBest:0,connect4Best:0,rpsBest:0,balance:1000},cookieData:{count:0,perClick:1},friends:[],lastSeen:Date.now()}; const t=token();db.sessions[t]=canonical;save();return json(res,200,{token:t,user:clean(db.users[canonical])})}
+  if(p==='/api/login'&&req.method==='POST'){const b=await readBody(req), x=userByName(b.username);if(!x||!check(String(b.password||''),x.password))return json(res,401,{error:'Invalid login'});const t=token();db.sessions[t]=x.username;touch(x);save();return json(res,200,{token:t,user:clean(x)})}
+  if(p==='/api/me'&&req.method==='GET'){const user=requireUser(req,res);if(!user)return;touch(user);save();return json(res,200,{user:clean(user)})}
+  if(p==='/api/presence'&&req.method==='POST'){const user=requireUser(req,res);if(!user)return;touch(user);save();return json(res,200,{ok:true})}
+  if(p==='/api/users/online'&&req.method==='GET'){const user=requireUser(req,res);if(!user)return;const cutoff=Date.now()-20000;return json(res,200,Object.values(db.users).filter(x=>(x.lastSeen||0)>=cutoff).map(x=>({username:x.username,displayName:x.displayName||x.username,avatarUrl:x.avatarUrl||null})).sort((a,b)=>a.username.localeCompare(b.username)))}
+  if(p==='/api/profile'&&req.method==='POST'){const user=requireUser(req,res);if(!user)return;const b=await readBody(req);if(b.displayName!==undefined){const s=String(b.displayName).trim().slice(0,30);if(s)user.displayName=s}if(b.avatarUrl!==undefined)user.avatarUrl=String(b.avatarUrl).trim().slice(0,500);if(b.newPassword!==undefined){if(String(b.newPassword).length<6)return json(res,400,{error:'New password must be at least 6 characters'});if(!b.currentPassword||!check(String(b.currentPassword),user.password))return json(res,403,{error:'Current password is incorrect'});user.password=hash(String(b.newPassword))}touch(user);save();return json(res,200,{user:clean(user)})}
+  if(p==='/api/animals'&&req.method==='GET')return json(res,200,animals())
+  if(p==='/api/roll'&&req.method==='POST'){const user=requireUser(req,res);if(!user)return;user.inventory??=[];if(user.inventory.length>=50)return json(res,400,{error:'Inventory full (max 50)'});const item=roll();user.inventory.push(item);touch(user);save();return json(res,200,{item,user:clean(user)})}
+  if(p==='/api/fuse'&&req.method==='POST'){const user=requireUser(req,res);if(!user)return;const b=await readBody(req), ids=Array.isArray(b.ids)?b.ids:[];if(ids.length!==4)return json(res,400,{error:'Select 4 brainrots.'});const inv=user.inventory||[], chosen=[];for(const x of ids){const ix=inv.findIndex(a=>a.id===x);if(ix<0)return json(res,400,{error:'Brainrot not found'});chosen.push(inv[ix])}for(const x of ids){const ix=inv.findIndex(a=>a.id===x);if(ix>=0)inv.splice(ix,1)}const rank={Common:0,Rare:1,Epic:2,Legendary:3,Mythic:4,Secret:5,Infinity:6};const highest=chosen.reduce((a,b)=>(rank[b.Rarity]||0)>(rank[a.Rarity]||0)?b:a);const pool=ANIMALS.filter(a=>(rank[a.Rarity]||0)>=(rank[highest.Rarity]||0));const out={...(pool[Math.floor(Math.random()*pool.length)]||highest),id:id()};inv.push(out);save();return json(res,200,{result:out,user:clean(user)})}
+  if(p==='/api/game/cookie'&&req.method==='POST'){const user=requireUser(req,res);if(!user)return;const b=await readBody(req);user.cookieData={count:Math.max(0,Number(b.count)||0),perClick:Math.max(1,Number(b.perClick)||1)};user.stats??={};user.stats.cookieBest=Math.max(user.stats.cookieBest||0,user.cookieData.count);touch(user);save();return json(res,200,{user:clean(user)})}
+  if(p==='/api/stats'&&req.method==='POST'){const user=requireUser(req,res);if(!user)return;const b=await readBody(req), game=String(b.game||''), key=scoreKey(game), score=Number(b.score)||0;if(!key)return json(res,400,{error:'Invalid game'});user.stats??={};user.stats[key]=Math.max(Number(user.stats[key])||0,score);touch(user);save();return json(res,200,{user:clean(user)})}
+  if(p==='/api/leaderboard'&&req.method==='GET'){const key=scoreKey(u.searchParams.get('game')||'plinko');if(!key)return json(res,400,{error:'Invalid game'});const rows=Object.values(db.users).map(x=>({username:x.username,displayName:x.displayName||x.username,avatarUrl:x.avatarUrl||null,score:Number((x.stats||{})[key])||0})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,50);return json(res,200,rows)}
+  if(p==='/api/chat'&&req.method==='GET'){const since=Number(u.searchParams.get('since')||0);return json(res,200,{messages:db.messages.filter(m=>Number(m.time)>since).slice(-100),announcement:db.announcement})}
+  if(p==='/api/chat'&&req.method==='POST'){const user=requireUser(req,res);if(!user)return;const b=await readBody(req),text=String(b.text||'').trim().slice(0,500);if(!text)return json(res,400,{error:'Message required'});db.messages.push({id:id(),username:user.username,displayName:playerName(user),avatarUrl:user.avatarUrl||null,text,time:Date.now()});db.messages=db.messages.slice(-500);touch(user);save();return json(res,200,{ok:true})}
+  if(p==='/api/friends'&&req.method==='GET'){const user=requireUser(req,res);if(!user)return;const names=user.friends||[];const friends=names.map(userByName).filter(Boolean).map(clean);const requests=db.requests.filter(x=>norm(x.to)===norm(user.username)&&x.status==='pending');return json(res,200,{friends,requests})}
+  if(p==='/api/friends/request'&&req.method==='POST'){const user=requireUser(req,res);if(!user)return;const b=await readBody(req),target=userByName(b.username);if(!target)return json(res,404,{error:'User not found'});if(norm(target.username)===norm(user.username))return json(res,400,{error:'You cannot add yourself'});if((user.friends||[]).some(x=>norm(x)===norm(target.username)))return json(res,400,{error:'Already friends'});db.requests.push({id:id(),from:user.username,to:target.username,status:'pending',time:Date.now()});save();return json(res,200,{ok:true})}
+  if(p==='/api/friends/respond'&&req.method==='POST'){const user=requireUser(req,res);if(!user)return;const b=await readBody(req),r=db.requests.find(x=>x.id===b.id&&norm(x.to)===norm(user.username));if(!r)return json(res,404,{error:'Request not found'});r.status=b.accept?'accepted':'declined';if(b.accept){user.friends??=[];const other=userByName(r.from);if(other){other.friends??=[];if(!user.friends.includes(other.username))user.friends.push(other.username);if(!other.friends.includes(user.username))other.friends.push(user.username)}}save();return json(res,200,{ok:true})}
+  if(p==='/api/trade/request'&&req.method==='POST'){const sender=requireUser(req,res);if(!sender)return;const b=await readBody(req),target=userByName(b.targetUser);if(!target)return json(res,404,{error:'User not found'});if(norm(target.username)===norm(sender.username))return json(res,400,{error:'You cannot trade with yourself'});const tradeId=id();db.trades[tradeId]={id:tradeId,a:sender.username,b:target.username,status:'pending',offerA:[],offerB:[],acceptedA:false,acceptedB:false,time:Date.now()};save();return json(res,200,{ok:true,tradeId})}
+  if(p==='/api/trade/pending'&&req.method==='GET'){const user=requireUser(req,res);if(!user)return;const incoming=Object.values(db.trades).find(t=>norm(t.b)===norm(user.username)&&t.status==='pending');return json(res,200,{trade:incoming?{...incoming,sender:clean(userByName(incoming.a)),target:clean(userByName(incoming.b))}:null})}
+  if(p==='/api/trade/action'&&req.method==='POST'){const user=requireUser(req,res);if(!user)return;const b=await readBody(req),trade=db.trades[b.tradeId];if(!trade)return json(res,404,{error:'Trade not found'});if(![norm(trade.a),norm(trade.b)].includes(norm(user.username)))return json(res,403,{error:'Not part of this trade'});if(b.action==='decline'){trade.status='declined';save();return json(res,200,{ok:true,trade})}if(b.action==='accept_request'){if(norm(user.username)!==norm(trade.b)||trade.status!=='pending')return json(res,400,{error:'Invalid trade request'});trade.status='active';trade.acceptedA=false;trade.acceptedB=false;save();return json(res,200,{ok:true,trade})}if(b.action==='offer'){if(trade.status!=='active')return json(res,400,{error:'Trade is not active'});const inv=user.inventory||[],ids=Array.isArray(b.ids)?b.ids:[];if(ids.some(x=>!inv.some(a=>a.id===x)))return json(res,400,{error:'One or more brainrots are missing'});if(norm(user.username)===norm(trade.a)){trade.offerA=ids;trade.acceptedA=false}else{trade.offerB=ids;trade.acceptedB=false}save();return json(res,200,{ok:true,trade})}if(b.action==='confirm'){if(trade.status!=='active')return json(res,400,{error:'Trade is not active'});if(norm(user.username)===norm(trade.a))trade.acceptedA=true;else trade.acceptedB=true;if(trade.acceptedA&&trade.acceptedB){const A=userByName(trade.a),B=userByName(trade.b);const ia=A.inventory||[],ib=B.inventory||[];const aa=trade.offerA.map(x=>ia.find(a=>a.id===x)),bb=trade.offerB.map(x=>ib.find(a=>a.id===x));if(aa.some(x=>!x)||bb.some(x=>!x)){trade.status='declined';return json(res,400,{error:'Inventory changed; trade cancelled'})}A.inventory=ia.filter(x=>!trade.offerA.includes(x.id)).concat(bb);B.inventory=ib.filter(x=>!trade.offerB.includes(x.id)).concat(aa);trade.status='completed';save();return json(res,200,{ok:true,trade})}save();return json(res,200,{ok:true,trade})}return json(res,400,{error:'Invalid trade action'})}
+  if(p==='/api/trade/active'&&req.method==='GET'){const user=requireUser(req,res);if(!user)return;const tr=Object.values(db.trades).find(t=>t.status==='active'&&(norm(t.a)===norm(user.username)||norm(t.b)===norm(user.username)));if(!tr)return json(res,200,{trade:null});return json(res,200,{trade:tr,other:clean(userByName(norm(tr.a)===norm(user.username)?tr.b:tr.a))})}
+  if(p==='/api/admin/give'&&req.method==='POST'){const user=requireUser(req,res);if(!user||!isAdmin(user))return json(res,403,{error:'Admin permissions required'});const b=await readBody(req),target=userByName(b.username),animal=ANIMALS.find(a=>norm(a.Name)===norm(b.brainrotName));if(!target)return json(res,404,{error:'Target user not found'});if(!animal)return json(res,404,{error:'Brainrot not found'});target.inventory??=[];target.inventory.push({...animal,id:id()});save();return json(res,200,{ok:true,target:target.username})}
+  if(p==='/api/admin/manage-admin'&&req.method==='POST'){const user=requireUser(req,res);if(!user||norm(user.username)!=='koolio')return json(res,403,{error:'Only koolio can manage admin roles'});const b=await readBody(req),target=userByName(b.username);if(!target)return json(res,404,{error:'Target user not found'});const name=norm(target.username);if(b.action==='add'){if(!db.admins.includes(name))db.admins.push(name)}else if(b.action==='remove'){if(name==='koolio')return json(res,400,{error:'Cannot remove primary admin koolio'});db.admins=db.admins.filter(x=>x!==name)}else return json(res,400,{error:'Invalid action'});save();return json(res,200,{ok:true,admins:db.admins})}
+  if(p==='/api/admin/luck'&&req.method==='POST'){const user=requireUser(req,res);if(!user||!isAdmin(user))return json(res,403,{error:'Admin permissions required'});const b=await readBody(req),multiplier=Math.max(1,Number(b.multiplier)||1),seconds=Math.max(1,Number(b.seconds)||1);db.luck={multiplier,expiresAt:Date.now()+seconds*1000};db.messages.push({id:id(),username:'SYSTEM',displayName:'SYSTEM',text:`⚡ GLOBAL LUCK EVENT: ${multiplier}x Luck active for ${seconds} seconds!`,time:Date.now()});save();return json(res,200,{ok:true,luck:db.luck})}
+  if(p==='/api/admin/announcement'&&req.method==='POST'){const user=requireUser(req,res);if(!user||!isAdmin(user))return json(res,403,{error:'Admin permissions required'});const b=await readBody(req),text=String(b.text||'').trim().slice(0,200);db.announcement=text?{text:`${playerName(user)}: ${text}`,time:Date.now()}:null;save();return json(res,200,{ok:true,announcement:db.announcement})}
+  if(p==='/api/admin/key'&&req.method==='POST'){const user=requireUser(req,res);if(!user||!isAdmin(user))return json(res,403,{error:'Admin permissions required'});const b=await readBody(req),durations={hour:36e5,day:864e5,week:6048e5,month:2592e6,permanent:null};if(!(b.duration in durations))return json(res,400,{error:'Invalid duration'});const duration=durations[b.duration],key=b.key?String(b.key).trim().toUpperCase():`KEY-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;db.keys[key]={key,createdAt:Date.now(),expiresAt:duration===null?null:Date.now()+duration,createdBy:user.username};save();return json(res,200,{ok:true,key})}
+  // Multiplayer rooms: Tic-Tac-Toe, Connect Four, Rock Paper Scissors.
+  if(p==='/api/mp/create'&&req.method==='POST'){const user=requireUser(req,res);if(!user)return;const b=await readBody(req),game=String(b.game||'');if(!['tictactoe','connect4','rps'].includes(game))return json(res,400,{error:'Invalid multiplayer game'});const code=roomCode();const room={code,game,players:[user.username],createdAt:Date.now(),state:game==='tictactoe'?{board:Array(9).fill(''),turn:0,winner:null}:game==='connect4'?{board:Array(42).fill(''),turn:0,winner:null}: {choices:{}}};db.rooms[code]=room;save();return json(res,200,{room})}
+  if(p==='/api/mp/join'&&req.method==='POST'){const user=requireUser(req,res);if(!user)return;const b=await readBody(req),code=String(b.code||'').trim().toUpperCase(),room=db.rooms[code];if(!room)return json(res,404,{error:'Room not found'});if(room.players.length>=2&&!room.players.includes(user.username))return json(res,400,{error:'Room is full'});if(!room.players.includes(user.username))room.players.push(user.username);save();return json(res,200,{room})}
+  if(p==='/api/mp/state'&&req.method==='GET'){const user=requireUser(req,res);if(!user)return;const code=String(u.searchParams.get('code')||'').toUpperCase(),room=db.rooms[code];if(!room)return json(res,404,{error:'Room not found'});if(!room.players.some(x=>norm(x)===norm(user.username)))return json(res,403,{error:'Not in room'});return json(res,200,{room})}
+  if(p==='/api/mp/move'&&req.method==='POST'){const user=requireUser(req,res);if(!user)return;const b=await readBody(req),room=db.rooms[String(b.code||'').toUpperCase()];if(!room)return json(res,404,{error:'Room not found'});if(room.players.length<2)return json(res,400,{error:'Waiting for another player'});if(!room.players.some(x=>norm(x)===norm(user.username)))return json(res,403,{error:'Not in room'});if(room.game==='tictactoe'){const s=room.state;if(s.winner)return json(res,400,{error:'Game over'});const pos=Number(b.pos);if(!Number.isInteger(pos)||pos<0||pos>8||s.board[pos])return json(res,400,{error:'Invalid move'});const idx=room.players.findIndex(x=>norm(x)===norm(user.username));if(idx!==s.turn)return json(res,400,{error:'Not your turn'});s.board[pos]=idx===0?'X':'O';const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];const win=lines.find(l=>s.board[l[0]]&&s.board[l[0]]===s.board[l[1]]&&s.board[l[1]]===s.board[l[2]]);if(win){s.winner=idx;const winner=db.users[room.players[idx]];winner.stats??={};winner.stats.tictactoeBest=Math.max(winner.stats.tictactoeBest||0,1)}else if(s.board.every(Boolean))s.winner='draw';else s.turn=1-s.turn}else if(room.game==='connect4'){const s=room.state,idx=room.players.findIndex(x=>norm(x)===norm(user.username));if(s.winner)return json(res,400,{error:'Game over'});if(idx!==s.turn)return json(res,400,{error:'Not your turn'});const col=Number(b.col);if(!Number.isInteger(col)||col<0||col>6)return json(res,400,{error:'Invalid column'});let row=-1;for(let r=5;r>=0;r--){if(!s.board[r*7+col]){row=r;break}}if(row<0)return json(res,400,{error:'Column full'});s.board[row*7+col]=idx===0?'R':'Y';const cell=(r,c)=>r>=0&&r<6&&c>=0&&c<7?s.board[r*7+c]:'';let won=false;for(let dr=-1;dr<=1&&!won;dr++)for(let dc=-1;dc<=1&&!won;dc++){if(!dr&&!dc)continue;for(let r=0;r<6;r++)for(let c=0;c<7;c++){const q=cell(r,c);if(!q)continue;let ok=true;for(let z=1;z<4;z++)if(cell(r+dr*z,c+dc*z)!==q)ok=false;if(ok)won=true}}if(won){s.winner=idx;const winner=db.users[room.players[idx]];winner.stats??={};winner.stats.connect4Best=Math.max(winner.stats.connect4Best||0,1)}else if(s.board.every(Boolean))s.winner='draw';else s.turn=1-s.turn}else if(room.game==='rps'){const c=String(b.choice||'');if(!['rock','paper','scissors'].includes(c))return json(res,400,{error:'Invalid choice'});const idx=room.players.findIndex(x=>norm(x)===norm(user.username));room.state.choices[user.username]=c;if(Object.keys(room.state.choices).length===2&&!room.state.result){const [a,bp]=room.players,ca=room.state.choices[a],cb=room.state.choices[bp];let winner='draw';if(ca!==cb){winner=(([ca,cb])=>ca==='rock'&&cb==='scissors'||ca==='paper'&&cb==='rock'||ca==='scissors'&&cb==='paper'?a:bp)([ca,cb]);const wu=db.users[winner];wu.stats??={};wu.stats.rpsBest=Math.max(wu.stats.rpsBest||0,1)}room.state.result=winner}}save();return json(res,200,{room})}
+  if(p==='/api/admin/announcement'&&req.method==='GET'){return json(res,200,{announcement:db.announcement})}
+  if(p==='/bookmarklet.js'){res.setHeader('Access-Control-Allow-Origin','*');res.writeHead(200,{'Content-Type':'application/javascript','Cache-Control':'no-store'});return res.end(fs.readFileSync(path.join(PUBLIC,'bookmarklet.js'),'utf8'))}
+  return json(res,404,{error:'Not Found'})
+ }catch(e){return json(res,500,{error:e.message||'Server error'})}
 }
-
-let db = load();
-
-db.messages ??= [];
-db.requests ??= [];
-db.trades ??= {};
-db.dm ??= [];
-db.users ??= {};
-db.keys ??= {};
-db.sessions ??= {};
-db.admins ??= ["koolio"];
-db.announcement ??= null;
-db.luck ??= { multiplier: 1, expiresAt: 0 };
-db.tictactoe ??= {};
-
-function save() {
-  fs.writeFileSync(DB, JSON.stringify(db, null, 2));
-}
-
-function cors(res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.setHeader("Access-Control-Max-Age", "86400");
-}
-
-function json(res, c, d) {
-  cors(res);
-  res.writeHead(c, {
-    "Content-Type": "application/json",
-    "Cache-Control": "no-store"
-  });
-  res.end(JSON.stringify(d));
-}
-
-function body(req) {
-  return new Promise((ok, no) => {
-    let s = "";
-
-    req.on("data", x => s += x);
-
-    req.on("end", () => {
-      try {
-        ok(s ? JSON.parse(s) : {});
-      } catch (e) {
-        no(e);
-      }
-    });
-  });
-}
-
-function id() {
-  return crypto.randomBytes(8).toString("hex");
-}
-
-function token() {
-  return crypto.randomBytes(32).toString("hex");
-}
-
-function hash(p, s = crypto.randomBytes(16).toString("hex")) {
-  return {
-    s,
-    h: crypto.scryptSync(p, s, 64).toString("hex")
-  };
-}
-
-function check(p, o) {
-  try {
-    return crypto.timingSafeEqual(
-      Buffer.from(crypto.scryptSync(p, o.s, 64).toString("hex"), "hex"),
-      Buffer.from(o.h, "hex")
-    );
-  } catch {
-    return false;
-  }
-}
-
-function auth(req) {
-  let t = (req.headers.authorization || "").replace(/^Bearer /, "");
-  return db.sessions[t] && db.users[db.sessions[t]];
-}
-
-function clean(u) {
-  return {
-    username: u.username,
-    displayName: u.displayName || u.username,
-    avatarUrl: u.avatarUrl || null,
-    createdAt: u.createdAt,
-    keyRedeemed: true,
-    redeemedKey: u.redeemedKey || "PERM-ADMIN",
-    keyCreatedAt: u.keyCreatedAt || Date.now(),
-    keyExpiresAt: null,
-    inventory: u.inventory || [],
-    stats: u.stats || {
-      plinkoBest: 0,
-      lockBest: 0,
-      balance: 1000000
-    },
-    cookieData: u.cookieData || {
-      count: 0,
-      perClick: 1
-    },
-    friends: u.friends || [],
-    isKoolio: u.username.toLowerCase() === "koolio",
-    isAdmin: db.admins.includes(u.username.toLowerCase())
-  };
-}
-
-function active(u) {
-  return true;
-}
-
-function weights() {
-  let luck =
-    db.luck.expiresAt > Date.now()
-      ? Math.max(1, Number(db.luck.multiplier) || 1)
-      : 1;
-
-  return {
-    luck,
-    animals: ANIMALS
-  };
-}
-
-function roll() {
-  let luck = weights().luck;
-
-  let arr = ANIMALS.map(a => [
-    a,
-    a.RNGWeight *
-      Math.max(
-        1,
-        a.Rarity === "Secret"
-          ? luck
-          : Math.sqrt(luck)
-      )
-  ]);
-
-  let total = arr.reduce((s, x) => s + x[1], 0);
-  let r = Math.random() * total;
-
-  for (const [a, w] of arr) {
-    r -= w;
-
-    if (r <= 0) {
-      return {
-        ...a,
-        id: id()
-      };
-    }
-  }
-
-  return {
-    ...ANIMALS[0],
-    id: id()
-  };
-}
-
-function validName(s) {
-  return typeof s === "string" &&
-    /^[A-Za-z0-9_]{3,20}$/.test(s);
-}
-
-// Seed / Ensure Koolio Account
-if (!db.users["koolio"]) {
-  db.users["koolio"] = {
-    username: "koolio",
-    displayName: "Koolio",
-    avatarUrl: "",
-    password: hash("Kruzzer67*"),
-    createdAt: Date.now(),
-    keyRedeemed: true,
-    inventory: [],
-    stats: {
-      plinkoBest: 0,
-      lockBest: 0,
-      balance: 10000000
-    },
-    cookieData: {
-      count: 0,
-      perClick: 1
-    },
-    friends: []
-  };
-
-  save();
-}
-
-function route(req, res) {
-  const u = new URL(
-    req.url,
-    `http://${req.headers.host || "localhost"}`
-  );
-
-  // Always handle CORS preflight.
-  if (req.method === "OPTIONS") {
-    cors(res);
-    res.writeHead(204);
-    return res.end();
-  }
-
-  // Authentication
-  if (u.pathname === "/api/register" && req.method === "POST") {
-    return body(req).then(b => {
-      if (
-        !validName(b.username) ||
-        typeof b.password !== "string" ||
-        b.password.length < 6
-      ) {
-        return json(res, 400, {
-          error: "Invalid username or password"
-        });
-      }
-
-      if (db.users[b.username]) {
-        return json(res, 409, {
-          error: "Username already exists"
-        });
-      }
-
-      let hp = hash(b.password);
-      let now = Date.now();
-
-      db.users[b.username] = {
-        username: b.username,
-        displayName: b.username,
-        avatarUrl: "",
-        password: hp,
-        createdAt: now,
-        keyRedeemed: true,
-        inventory: [],
-        stats: {
-          plinkoBest: 0,
-          lockBest: 0,
-          balance: 1000
-        },
-        cookieData: {
-          count: 0,
-          perClick: 1
-        },
-        friends: []
-      };
-
-      let t = token();
-      db.sessions[t] = b.username;
-
-      save();
-
-      return json(res, 200, {
-        token: t,
-        user: clean(db.users[b.username])
-      });
-    });
-  }
-
-  if (u.pathname === "/api/login" && req.method === "POST") {
-    return body(req).then(b => {
-      let x = db.users[b.username];
-
-      if (!x || !check(b.password, x.password)) {
-        return json(res, 401, {
-          error: "Invalid login"
-        });
-      }
-
-      let t = token();
-      db.sessions[t] = x.username;
-
-      save();
-
-      return json(res, 200, {
-        token: t,
-        user: clean(x)
-      });
-    });
-  }
-
-  if (u.pathname === "/api/me" && req.method === "GET") {
-    let user = auth(req);
-
-    return user
-      ? json(res, 200, { user: clean(user) })
-      : json(res, 401, { error: "Login required" });
-  }
-
-  // Chat
-  if (u.pathname === "/api/chat" && req.method === "GET") {
-    const since = Number(u.searchParams.get("since") || 0);
-
-    const messages = db.messages
-      .filter(m => Number(m.time || 0) > since)
-      .slice(-100);
-
-    return json(res, 200, messages);
-  }
-
-  if (u.pathname === "/api/chat" && req.method === "POST") {
-    return body(req).then(b => {
-      const user = auth(req);
-
-      if (!user) {
-        return json(res, 401, {
-          error: "Login required"
-        });
-      }
-
-      const text = String(b.text || "")
-        .trim()
-        .slice(0, 500);
-
-      if (!text) {
-        return json(res, 400, {
-          error: "Message required"
-        });
-      }
-
-      const message = {
-        id: id(),
-        username: user.username,
-        displayName: user.displayName || user.username,
-        avatarUrl: user.avatarUrl || null,
-        text,
-        time: Date.now()
-      };
-
-      db.messages.push(message);
-
-      if (db.messages.length > 500) {
-        db.messages = db.messages.slice(-500);
-      }
-
-      save();
-
-      return json(res, 200, {
-        ok: true,
-        message
-      });
-    });
-  }
-
-  // Profile Management
-  if (u.pathname === "/api/profile" && req.method === "POST") {
-    return body(req).then(b => {
-      let user = auth(req);
-
-      if (!user) {
-        return json(res, 401, {
-          error: "Login required"
-        });
-      }
-
-      if (b.displayName) {
-        user.displayName =
-          String(b.displayName)
-            .trim()
-            .slice(0, 30);
-      }
-
-      if (b.avatarUrl) {
-        user.avatarUrl =
-          String(b.avatarUrl).trim();
-      }
-
-      if (
-        b.newPassword &&
-        b.newPassword.length >= 6
-      ) {
-        user.password = hash(b.newPassword);
-      }
-
-      save();
-
-      return json(res, 200, {
-        user: clean(user)
-      });
-    });
-  }
-
-  // Online Players
-  if (
-    u.pathname === "/api/users/online" &&
-    req.method === "GET"
-  ) {
-    let list = Object.values(db.users).map(x => ({
-      username: x.username,
-      displayName: x.displayName || x.username,
-      avatarUrl: x.avatarUrl || null
-    }));
-
-    return json(res, 200, list);
-  }
-
-  // Admin Give Item
-  if (
-    u.pathname === "/api/admin/give" &&
-    req.method === "POST"
-  ) {
-    return body(req).then(b => {
-      let user = auth(req);
-
-      if (
-        !user ||
-        !db.admins.includes(
-          user.username.toLowerCase()
-        )
-      ) {
-        return json(res, 403, {
-          error: "Admin permissions required"
-        });
-      }
-
-      let target = db.users[b.username];
-
-      if (!target) {
-        return json(res, 404, {
-          error: "Target user not found"
-        });
-      }
-
-      let animal = ANIMALS.find(
-        a =>
-          a.Name.toLowerCase() ===
-          String(b.brainrotName)
-            .trim()
-            .toLowerCase()
-      );
-
-      if (!animal) {
-        return json(res, 404, {
-          error: "Brainrot not found"
-        });
-      }
-
-      target.inventory = target.inventory || [];
-
-      let item = {
-        ...animal,
-        id: id()
-      };
-
-      target.inventory.push(item);
-
-      save();
-
-      return json(res, 200, {
-        ok: true,
-        given: item,
-        target: target.username
-      });
-    });
-  }
-
-  // Admin Luck
-  if (
-    u.pathname === "/api/admin/luck" &&
-    req.method === "POST"
-  ) {
-    return body(req).then(b => {
-      let user = auth(req);
-
-      if (
-        !user ||
-        !db.admins.includes(
-          user.username.toLowerCase()
-        )
-      ) {
-        return json(res, 403, {
-          error: "Admin permissions required"
-        });
-      }
-
-      let multiplier =
-        Math.max(1, Number(b.multiplier) || 1);
-
-      let seconds =
-        Math.max(1, Number(b.seconds) || 1);
-
-      db.luck = {
-        multiplier,
-        expiresAt: Date.now() + seconds * 1000
-      };
-
-      db.messages.push({
-        id: id(),
-        username: "SYSTEM",
-        displayName: "SYSTEM",
-        text:
-          `⚡ GLOBAL LUCK EVENT: ${multiplier}x Luck active for ${seconds} seconds!`,
-        time: Date.now()
-      });
-
-      save();
-
-      return json(res, 200, {
-        ok: true,
-        luck: db.luck
-      });
-    });
-  }
-
-  // Admin Announcement
-  if (
-    u.pathname === "/api/admin/announcement" &&
-    req.method === "POST"
-  ) {
-    return body(req).then(b => {
-      let user = auth(req);
-
-      if (
-        !user ||
-        !db.admins.includes(
-          user.username.toLowerCase()
-        )
-      ) {
-        return json(res, 403, {
-          error: "Admin permissions required"
-        });
-      }
-
-      let namePrefix =
-        user.displayName ||
-        user.username;
-
-      let text =
-        String(b.text || "")
-          .trim()
-          .slice(0, 200);
-
-      db.announcement = text
-        ? {
-            text: `${namePrefix}: ${text}`,
-            time: Date.now()
-          }
-        : null;
-
-      save();
-
-      return json(res, 200, {
-        ok: true,
-        announcement: db.announcement
-      });
-    });
-  }
-
-  // Manage Permanent Admins
-  if (
-    u.pathname === "/api/admin/manage-admin" &&
-    req.method === "POST"
-  ) {
-    return body(req).then(b => {
-      let user = auth(req);
-
-      if (
-        !user ||
-        user.username.toLowerCase() !== "koolio"
-      ) {
-        return json(res, 403, {
-          error: "Only koolio can manage admin roles"
-        });
-      }
-
-      let target =
-        String(b.username || "")
-          .trim()
-          .toLowerCase();
-
-      if (!target) {
-        return json(res, 400, {
-          error: "Username required"
-        });
-      }
-
-      if (b.action === "add") {
-        if (!db.admins.includes(target)) {
-          db.admins.push(target);
-        }
-      } else if (b.action === "remove") {
-        if (target === "koolio") {
-          return json(res, 400, {
-            error: "Cannot remove primary admin koolio"
-          });
-        }
-
-        db.admins =
-          db.admins.filter(a => a !== target);
-      } else {
-        return json(res, 400, {
-          error: "Invalid action"
-        });
-      }
-
-      save();
-
-      return json(res, 200, {
-        ok: true,
-        admins: db.admins
-      });
-    });
-  }
-
-  // Generate Server Key
-  if (
-    u.pathname === "/api/admin/key" &&
-    req.method === "POST"
-  ) {
-    return body(req).then(b => {
-      let user = auth(req);
-
-      if (
-        !user ||
-        !db.admins.includes(
-          user.username.toLowerCase()
-        )
-      ) {
-        return json(res, 403, {
-          error: "Admin permissions required"
-        });
-      }
-
-      const durations = {
-        hour: 60 * 60 * 1000,
-        day: 24 * 60 * 60 * 1000,
-        week: 7 * 24 * 60 * 60 * 1000,
-        month: 30 * 24 * 60 * 60 * 1000,
-        permanent: null
-      };
-
-      const duration =
-        durations[b.duration];
-
-      if (
-        duration === undefined
-      ) {
-        return json(res, 400, {
-          error: "Invalid duration"
-        });
-      }
-
-      let key =
-        b.key
-          ? String(b.key)
-              .trim()
-              .toUpperCase()
-          : `KEY-${crypto
-              .randomBytes(6)
-              .toString("hex")
-              .toUpperCase()}`;
-
-      db.keys[key] = {
-        key,
-        createdAt: Date.now(),
-        expiresAt:
-          duration === null
-            ? null
-            : Date.now() + duration,
-        createdBy: user.username
-      };
-
-      save();
-
-      return json(res, 200, {
-        ok: true,
-        key
-      });
-    });
-  }
-
-  // Trade System
-  if (
-    u.pathname === "/api/trade/request" &&
-    req.method === "POST"
-  ) {
-    return body(req).then(b => {
-      let sender = auth(req);
-
-      if (!sender) {
-        return json(res, 401, {
-          error: "Login required"
-        });
-      }
-
-      let target =
-        db.users[b.targetUser];
-
-      if (!target) {
-        return json(res, 404, {
-          error: "User not found"
-        });
-      }
-
-      let tradeId = id();
-
-      db.trades[tradeId] = {
-        id: tradeId,
-        a: sender.username,
-        senderAvatar: sender.avatarUrl,
-        b: target.username,
-        status: "pending",
-        time: Date.now()
-      };
-
-      save();
-
-      return json(res, 200, {
-        ok: true,
-        tradeId
-      });
-    });
-  }
-
-  if (
-    u.pathname === "/api/trade/pending" &&
-    req.method === "GET"
-  ) {
-    let user = auth(req);
-
-    if (!user) {
-      return json(res, 401, {
-        error: "Login required"
-      });
-    }
-
-    let incoming =
-      Object.values(db.trades).find(
-        t =>
-          t.b.toLowerCase() ===
-            user.username.toLowerCase() &&
-          t.status === "pending"
-      );
-
-    return json(res, 200, {
-      trade: incoming || null
-    });
-  }
-
-  if (
-    u.pathname === "/api/trade/action" &&
-    req.method === "POST"
-  ) {
-    return body(req).then(b => {
-      let user = auth(req);
-
-      if (!user) {
-        return json(res, 401, {
-          error: "Login required"
-        });
-      }
-
-      let trade =
-        db.trades[b.tradeId];
-
-      if (!trade) {
-        return json(res, 404, {
-          error: "Trade not found"
-        });
-      }
-
-      if (b.action === "decline") {
-        trade.status = "declined";
-      }
-
-      if (b.action === "accept_request") {
-        trade.status = "active";
-      }
-
-      save();
-
-      return json(res, 200, {
-        ok: true,
-        trade
-      });
-    });
-  }
-
-  // Games & RNG
-  if (
-    u.pathname === "/api/animals" &&
-    req.method === "GET"
-  ) {
-    return json(res, 200, weights());
-  }
-
-  if (
-    u.pathname === "/api/roll" &&
-    req.method === "POST"
-  ) {
-    let user = auth(req);
-
-    if (!active(user)) {
-      return json(res, 403, {
-        error: "Active key required"
-      });
-    }
-
-    user.inventory =
-      user.inventory || [];
-
-    let item = roll();
-
-    user.inventory.push(item);
-
-    save();
-
-    return json(res, 200, {
-      item,
-      user: clean(user)
-    });
-  }
-
-  // Serve Bookmarklet
-  if (u.pathname === "/bookmarklet.js") {
-    cors(res);
-
-    res.writeHead(200, {
-      "Content-Type": "application/javascript",
-      "Cache-Control": "no-store"
-    });
-
-    return res.end(
-      fs.readFileSync(
-        path.join(PUBLIC, "bookmarklet.js"),
-        "utf8"
-      )
-    );
-  }
-
-  // Fallback
-  cors(res);
-
-  res.writeHead(404, {
-    "Content-Type": "text/plain"
-  });
-
-  res.end("Not Found");
-}
-
-http
-  .createServer((req, res) =>
-    Promise
-      .resolve(route(req, res))
-      .catch(e =>
-        json(res, 500, {
-          error: e.message
-        })
-      )
-  )
-  .listen(PORT, () =>
-    console.log(
-      "Listening on " + PORT
-    )
-  );
+http.createServer((req,res)=>route(req,res)).listen(PORT,()=>console.log('Listening on '+PORT));
