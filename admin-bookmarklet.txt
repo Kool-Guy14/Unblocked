@@ -1,1 +1,43 @@
-javascript:(async()=>{const API="https://brainrots-game-library.onrender.com";const box=document.createElement("div");box.style="position:fixed;inset:0;z-index:2147483647;background:#10131a;color:#fff;font:15px Arial;display:flex;align-items:center;justify-content:center";box.innerHTML=`<div style="width:430px;background:#202b38;padding:22px;border-radius:10px"><h2>Admin Controls</h2><h3>Global Announcement</h3><input id=a maxlength=200 placeholder="Announcement text" style="width:100%;padding:10px;box-sizing:border-box"><button id=as>ANNOUNCE FOR 3 SECONDS</button><h3>RNG Luck</h3><input id=l type=number min=1 value=2 placeholder="Luck multiplier" style="width:48%;padding:10px"><input id=d type=number min=1 value=60 placeholder="Duration (seconds)" style="width:48%;padding:10px"><button id=ls>ACTIVATE LUCK</button><h3>Generate Key</h3><select id=t style="padding:10px;width:100%"><option value=hour>1 Hour</option><option value=day>1 Day</option><option value=week>7 Days</option><option value=month>30 Days</option><option value=permanent>Permanent</option></select><button id=g>GENERATE KEY</button><pre id=o style="white-space:pre-wrap"></pre></div>`;document.body.appendChild(box);const post=async(p,b)=>{let r=await fetch(API+p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});return r.json()};box.querySelector("#as").onclick=async()=>{let x=await post("/api/admin/announcement",{text:box.querySelector("#a").value});box.querySelector("#o").textContent=x.error||"Announcement sent."};box.querySelector("#ls").onclick=async()=>{let x=await post("/api/admin/luck",{multiplier:+box.querySelector("#l").value,seconds:+box.querySelector("#d").value});box.querySelector("#o").textContent=x.error||"Luck activated.";};box.querySelector("#g").onclick=async()=>{let x=await post("/api/admin/key",{duration:box.querySelector("#t").value});box.querySelector("#o").textContent=x.error||JSON.stringify(x,null,2)}})()
+javascript:(async()=>{if(window.__adminPanel){alert("Already open!");return}window.__adminPanel=true;const API="https://brainrots-game-library.onrender.com";const SALT="ultra_brainrot_v1";
+function fnv1a(str){let h=0x811c9dc5;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=(h*0x01000193)>>>0}return h>>>0}
+const DUR_CODES={hour:"1",day:"2",week:"3",month:"4",permanent:"0"};
+function genOfflineKey(duration,base){let code=DUR_CODES[duration];let core=base?base.trim().toUpperCase().replace(/[^A-Z0-9]/g,""):Math.random().toString(16).slice(2,8).toUpperCase();let sum=fnv1a(code+core+SALT).toString(16).toUpperCase().padStart(8,"0").slice(0,6);return `OFF-${code}-${core}-${sum}`}
+const wrap=document.createElement("div");
+wrap.style="position:fixed;top:60px;left:60px;width:340px;background:#202b38;color:#fff;font-family:Arial,sans-serif;border-radius:10px;box-shadow:0 10px 40px #000;z-index:2147483647;border:2px solid #45607a;overflow:hidden";
+wrap.innerHTML=`<div id=h style="cursor:move;padding:10px 14px;background:#2c3e50;font-weight:bold;font-size:14px;display:flex;justify-content:space-between;align-items:center">ADMIN CONTROLS <span id=x style="cursor:pointer">✕</span></div>
+<div style="padding:16px">
+<h3 style="font-size:12px;margin:0 0 6px">Global Announcement</h3>
+<input id=a maxlength=200 placeholder="Announcement text" style="width:100%;padding:8px;box-sizing:border-box;border-radius:4px;border:1px solid #45607a;background:#1c2733;color:#fff;font-size:12px">
+<button id=as style="width:100%;margin-top:6px;padding:8px;background:#4cae61;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px">ANNOUNCE FOR 3 SECONDS</button>
+<h3 style="font-size:12px;margin:14px 0 6px">RNG Luck</h3>
+<div style="display:flex;gap:6px">
+<input id=l type=number min=1 value=2 placeholder="Multiplier" style="width:50%;padding:8px;border-radius:4px;border:1px solid #45607a;background:#1c2733;color:#fff;font-size:12px">
+<input id=d type=number min=1 value=60 placeholder="Seconds" style="width:50%;padding:8px;border-radius:4px;border:1px solid #45607a;background:#1c2733;color:#fff;font-size:12px">
+</div>
+<button id=ls style="width:100%;margin-top:6px;padding:8px;background:#4cae61;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px">ACTIVATE LUCK</button>
+<h3 style="font-size:12px;margin:14px 0 6px">Generate Key</h3>
+<select id=t style="width:100%;padding:8px;border-radius:4px;border:1px solid #45607a;background:#1c2733;color:#fff;font-size:12px">
+<option value=hour>1 Hour</option><option value=day>1 Day</option><option value=week>7 Days</option><option value=month>30 Days</option><option value=permanent>Permanent</option>
+</select>
+<input id=ck placeholder="Custom key (optional)" style="width:100%;padding:8px;margin-top:6px;border-radius:4px;border:1px solid #45607a;background:#1c2733;color:#fff;font-size:12px;box-sizing:border-box">
+<div style="display:flex;gap:6px;margin-top:6px">
+<button id=g style="flex:1;padding:8px;background:#7b2cbf;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px">SERVER KEY</button>
+<button id=go style="flex:1;padding:8px;background:#a3752c;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px">OFFLINE KEY</button>
+</div>
+<div id=keyOut style="display:none;margin-top:10px;padding:10px;background:#0d1319;border-radius:6px;text-align:center">
+<div id=keyLabel style="font-size:10px;opacity:.7;margin-bottom:4px">GENERATED KEY</div>
+<div id=keyVal style="font-size:14px;font-weight:bold;word-break:break-all;color:#8fd694"></div>
+<button id=cpk style="margin-top:6px;padding:5px 10px;background:#3b6ea5;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:11px">Copy</button>
+</div>
+<pre id=o style="white-space:pre-wrap;font-size:11px;margin-top:10px;opacity:.85"></pre>
+</div>`;
+document.body.appendChild(wrap);
+const post=async(p,b)=>{let r=await fetch(API+p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});return r.json()};
+wrap.querySelector("#as").onclick=async()=>{const o=wrap.querySelector("#o"),text=wrap.querySelector("#a").value;let x=await post("/api/admin/announcement",{text});o.textContent=x.error||"Announcement sent.";if(!x.error){clearTimeout(window.__annClear);window.__annClear=setTimeout(async()=>{await post("/api/admin/announcement",{text:""});o.textContent="Announcement cleared."},3000)}};
+wrap.querySelector("#ls").onclick=async()=>{const o=wrap.querySelector("#o");let x=await post("/api/admin/luck",{multiplier:+wrap.querySelector("#l").value,seconds:+wrap.querySelector("#d").value});o.textContent=x.error||"Luck activated."};
+wrap.querySelector("#g").onclick=async()=>{const o=wrap.querySelector("#o"),ko=wrap.querySelector("#keyOut"),kv=wrap.querySelector("#keyVal"),kl=wrap.querySelector("#keyLabel"),custom=wrap.querySelector("#ck").value.trim();let payload={duration:wrap.querySelector("#t").value};if(custom)payload.key=custom;let x=await post("/api/admin/key",payload);if(x.error){o.textContent=x.error;ko.style.display="none"}else{o.textContent="";kl.textContent="SERVER KEY";kv.textContent=x.key;ko.style.display="block"}};
+wrap.querySelector("#go").onclick=()=>{const o=wrap.querySelector("#o"),ko=wrap.querySelector("#keyOut"),kv=wrap.querySelector("#keyVal"),kl=wrap.querySelector("#keyLabel"),custom=wrap.querySelector("#ck").value.trim();let key=genOfflineKey(wrap.querySelector("#t").value,custom);o.textContent="This key works in Offline Mode only, without needing the server.";kl.textContent="OFFLINE KEY";kv.textContent=key;ko.style.display="block"};
+wrap.querySelector("#cpk").onclick=()=>{navigator.clipboard.writeText(wrap.querySelector("#keyVal").textContent);wrap.querySelector("#o").textContent="Key copied."};
+let isD=false,ox,oy;wrap.querySelector("#h").onmousedown=e=>{isD=true;ox=e.clientX-wrap.offsetLeft;oy=e.clientY-wrap.offsetTop};document.onmousemove=e=>{if(isD){wrap.style.left=(e.clientX-ox)+"px";wrap.style.top=(e.clientY-oy)+"px"}};document.onmouseup=()=>isD=false;
+wrap.querySelector("#x").onclick=()=>{wrap.remove();window.__adminPanel=false};
+})();
