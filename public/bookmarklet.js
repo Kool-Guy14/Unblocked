@@ -1,91 +1,298 @@
-javascript:(async()=>{if(window.__brainrotApp){alert("Already running!");return}window.__brainrotApp=true;const API="https://brainrots-game-library.onrender.com";let token=localStorage.getItem("ultra_auth");let offline=false,offlineInit=false;const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const ANIMALS=[{"Name":"Gattino Hydrantino","DisplayName":"Gattino Hydrantino","Rarity":"Secret","Price":1950000000,"Generation":14500000,"RNGWeight":4e-08},{"Name":"Gub","DisplayName":"Gub","Rarity":"Secret","Price":900000000,"Generation":5000000,"RNGWeight":4e-08},{"Name":"Puffino Builderino","DisplayName":"Puffino Builderino","Rarity":"Secret","Price":3750000000,"Generation":31000000,"RNGWeight":3e-08},{"Name":"Sir Mangus","DisplayName":"Sir Mangus","Rarity":"Secret","Price":1250000000,"Generation":7500000,"RNGWeight":2e-08},{"Name":"Fluriflura","DisplayName":"Fluriflura","Rarity":"Common","Price":1000,"Generation":10,"RNGWeight":0.46},{"Name":"Talpa Di Fero","DisplayName":"Talpa Di Fero","Rarity":"Common","Price":5000,"Generation":50,"RNGWeight":0.2},{"Name":"Tim Cheese","DisplayName":"Tim Cheese","Rarity":"Common","Price":10000,"Generation":100,"RNGWeight":0.15},{"Name":"Boneca Ambalabu","DisplayName":"Boneca Ambalabu","Rarity":"Rare","Price":50000,"Generation":250,"RNGWeight":0.08},{"Name":"Odin Din Din Dun","DisplayName":"Odin Din Din Dun","Rarity":"Rare","Price":100000,"Generation":500,"RNGWeight":0.04},{"Name":"Los Orcalitos","DisplayName":"Los Orcalitos","Rarity":"Rare","Price":250000,"Generation":1200,"RNGWeight":0.025},{"Name":"Gatto Tacoto","DisplayName":"Gatto Tacoto","Rarity":"Epic","Price":500000,"Generation":2500,"RNGWeight":0.008},{"Name":"Tralalero Tralala","DisplayName":"Tralalero Tralala","Rarity":"Epic","Price":1000000,"Generation":5000,"RNGWeight":0.002},{"Name":"Los Chihuaninis","DisplayName":"Los Chihuaninis","Rarity":"Epic","Price":2500000,"Generation":12000,"RNGWeight":0.0009},{"Name":"Chihuanini Tacoini","DisplayName":"Chihuanini Tacoini","Rarity":"Legendary","Price":10000000,"Generation":50000,"RNGWeight":0.0002},{"Name":"Tripi Tropi Troppa Trippa","DisplayName":"Tripi Tropi Troppa Trippa","Rarity":"Legendary","Price":25000000,"Generation":125000,"RNGWeight":8e-05}];
-const RARITY_ORDER=["Common","Rare","Epic","Legendary","Mythic","Secret"];
-const MAX_INV=10;
-const SALT="ultra_brainrot_v1";
-function fnv1a(str){let h=0x811c9dc5;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=(h*0x01000193)>>>0}return h>>>0}
-const DUR_MS={"0":0,"1":3600000,"2":86400000,"3":604800000,"4":2592000000};
-function verifyOfflineKey(key){let m=/^OFF-([0-4])-([A-Z0-9]+)-([A-F0-9]{6})$/.exec((key||"").trim().toUpperCase());if(!m)return null;let [,code,core,sum]=m;let expect=fnv1a(code+core+SALT).toString(16).toUpperCase().padStart(8,"0").slice(0,6);if(expect!==sum)return null;let ms=DUR_MS[code];return {expiresAt:Date.now()+ms}}
-function consumeOfflineKey(d,key){let v=verifyOfflineKey(key);if(!v)throw Error("Invalid key");let norm=key.trim().toUpperCase();if(d.keys[norm]&&d.keys[norm].used)throw Error("this key is out of stock.");d.keys[norm]={used:true,expiresAt:v.expiresAt};return v}
-function loadOff(){try{return JSON.parse(localStorage.getItem("ultra_offline_db"))}catch{return null}}
-function saveOff(d){localStorage.setItem("ultra_offline_db",JSON.stringify(d))}
-function ensureOff(){let d=loadOff();if(!d){d={users:{},me:null,keys:{}};saveOff(d)}return d}
-function oid(){return Math.random().toString(16).slice(2)+Date.now().toString(16)}
-function rarity(a){return RARITY_ORDER.indexOf(a.Rarity)}
-function offRoll(){let arr=ANIMALS.map(a=>[a,a.RNGWeight]),total=arr.reduce((s,x)=>s+x[1],0),r=Math.random()*total;for(const [a,w] of arr){r-=w;if(r<=0)return {...a,id:oid()}}return {...ANIMALS[0],id:oid()}}
-function offFuse(items){let best=items.reduce((a,b)=>rarity(a)>rarity(b)?a:b);let target=rarity(best);let pool=ANIMALS.filter(a=>rarity(a)>=target && a.Rarity!==best.Rarity);if(!pool.length)pool=ANIMALS.filter(a=>rarity(a)>=target);let a=pool[Math.floor(Math.random()*pool.length)]||best;return {...a,id:oid()}}
-function exportOffline(){let d=loadOff();if(!d)return;let blob=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});let a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="brainrot-offline-save-"+Date.now()+".json";document.body.appendChild(a);a.click();a.remove()}
-function promptImport(){return new Promise(resolve=>{const m=document.createElement("div");m.style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:2147483647;display:flex;align-items:center;justify-content:center";m.innerHTML=`<div style="background:#141b24;color:#e7edf3;padding:16px;border-radius:10px;width:300px;font-family:Arial,sans-serif;font-size:12px;border:2px solid #45607a;text-align:center"><p style="margin:0 0 10px;font-weight:bold">Offline Mode</p><p style="margin:0 0 10px">This site can't connect to the server. Load a previous save file, or start fresh.</p><input id=ff type=file accept=".json" style="display:none"><button id=pick style="padding:6px 12px;background:#3b6ea5;color:#fff;border:0;border-radius:4px;cursor:pointer;margin-bottom:6px">Select Save File</button><br><button id=skip style="padding:6px 12px;background:#425565;color:#fff;border:0;border-radius:4px;cursor:pointer">Start Fresh</button></div>`;document.body.appendChild(m);const ff=m.querySelector("#ff");m.querySelector("#pick").onclick=()=>ff.click();ff.onchange=()=>{const file=ff.files[0];if(!file)return;const r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);saveOff(d);m.remove();resolve()}catch{alert("Invalid save file");m.remove();resolve()}};r.readAsText(file)};m.querySelector("#skip").onclick=()=>{ensureOff();m.remove();resolve()}})}
-async function initOffline(){offline=true;showOfflineBanner();if(!offlineInit){offlineInit=true;await promptImport()}}
-function ensureUserShape(u){u.stats=u.stats||{plinkoBest:0,lockBest:0};u.cookieData=u.cookieData||{count:0,perClick:1};return u}
-async function offlineRq(p,o={}){let d=ensureOff();let body={};try{body=o.body?JSON.parse(o.body):{}}catch{}
-if(p==="/api/register"){if(!body.key)throw Error("A valid key is required to register");let v=consumeOfflineKey(d,body.key);if(!body.username||!body.password||body.password.length<6)throw Error("Invalid username or password");if(d.users[body.username])throw Error("Username already exists");d.users[body.username]=ensureUserShape({username:body.username,inventory:[],keyRedeemed:true,redeemedKey:body.key,keyExpiresAt:v.expiresAt});d.me=body.username;saveOff(d);return {token:"offline",user:d.users[body.username]}}
-if(p==="/api/login"){if(!d.users[body.username])throw Error("Invalid login");d.me=body.username;saveOff(d);return {token:"offline",user:d.users[body.username]}}
-if(p==="/api/redeem"){if(!d.me)throw Error("Login required");if(d.users[d.me].keyRedeemed)throw Error("This account already has a redeemed key");let v=consumeOfflineKey(d,body.key);d.users[d.me].keyRedeemed=true;d.users[d.me].redeemedKey=body.key;d.users[d.me].keyExpiresAt=v.expiresAt;saveOff(d);return {user:d.users[d.me]}}
-if(p==="/api/me"){if(!d.me||!d.users[d.me])throw Error("Login required");return {user:d.users[d.me]}}
-if(p==="/api/animals"){return {luck:1,animals:ANIMALS}}
-if(p==="/api/roll"){if(!d.me)throw Error("Login required");if(!d.users[d.me].keyRedeemed)throw Error("Active key required");if((d.users[d.me].inventory||[]).length>=MAX_INV)throw Error("Inventory full (max 10). Fuse some brainrots first.");let item=offRoll();d.users[d.me].inventory.push(item);saveOff(d);return {item,user:d.users[d.me],luck:1}}
-if(p==="/api/fuse"){if(!d.me)throw Error("Login required");if(!d.users[d.me].keyRedeemed)throw Error("Active key required");let ids=body.ids||[];let inv=d.users[d.me].inventory;let chosen=[];for(const x of ids){let i=inv.findIndex(v=>v.id===x);if(i<0)throw Error("Brainrot not found");chosen.push(inv[i])}ids.forEach(x=>inv.splice(inv.findIndex(v=>v.id===x),1));let result=offFuse(chosen);inv.push(result);saveOff(d);return {result,user:d.users[d.me]}}
-if(p==="/api/stats"){if(!d.me)throw Error("Login required");let game=body.game,score=Number(body.score)||0;if(!["plinko","lock"].includes(game))throw Error("Invalid game");d.users[d.me].stats=d.users[d.me].stats||{plinkoBest:0,lockBest:0};let key=game+"Best";if(score>(d.users[d.me].stats[key]||0))d.users[d.me].stats[key]=score;saveOff(d);return {user:d.users[d.me]}}
-if(p==="/api/game/cookie"){if(!d.me)throw Error("Login required");d.users[d.me].cookieData={count:Math.max(0,Number(body.count)||0),perClick:Math.max(1,Number(body.perClick)||1)};saveOff(d);return {user:d.users[d.me]}}
-if(p.startsWith("/api/chat"))return {messages:[],announcement:null,luck:1};
-if(p.startsWith("/api/friends"))return {friends:[],requests:[]};
-throw Error("This feature needs an internet connection and isn't available offline.")}
-const rq=async(p,o={})=>{if(offline)return offlineRq(p,o);let r;try{r=await fetch(API+p,{...o,headers:{"Content-Type":"application/json",...(token&&token!=="offline"?{Authorization:"Bearer "+token}:{})}})}catch{await initOffline();return offlineRq(p,o)}let j=await r.json();if(!r.ok)throw Error(j.error||"Request failed");return j};
-const wrap=document.createElement("div");
-wrap.style="position:fixed;top:40px;left:40px;width:360px;height:480px;min-width:300px;min-height:340px;resize:both;overflow:auto;background:#141b24;color:#e7edf3;font-family:sans-serif;border-radius:12px;box-shadow:0 10px 40px #000;z-index:2147483647;border:2px solid #45607a;display:flex;flex-direction:column";
-wrap.innerHTML=`<div id=u_h style="cursor:move;padding:9px 12px;background:#243447;font-size:14px;font-weight:bold;border-radius:10px 10px 0 0;display:flex;justify-content:space-between;align-items:center">GAME LIBRARY <span id=user style="font-size:11px;font-weight:normal;opacity:.8"></span><div><span id=u_min style="cursor:pointer;margin-right:10px">_</span><span id=u_x style="cursor:pointer">✕</span></div></div><div id=off style="display:none;background:#5a3d00;color:#ffd580;text-align:center;font-weight:bold;padding:5px;font-size:11px">OFFLINE MODE · progress stored on this device only</div><div id=ann style="display:none;background:#fff;color:#111;text-align:center;font-weight:bold;padding:6px;font-size:12px"></div><div id=nav style="display:flex;gap:6px;padding:8px;border-bottom:1px solid #2c3e50;flex-wrap:wrap"></div><div id=main style="flex:1;overflow:auto;padding:10px"></div>`;
-document.body.appendChild(wrap);
-function showOfflineBanner(){wrap.querySelector("#off").style.display="block"}
-const nav=wrap.querySelector("#nav"),main=wrap.querySelector("#main");let lastAnn=0;
-function notify(x){let a=wrap.querySelector("#ann");a.textContent=x;a.style.display="block";clearTimeout(window.__ann);window.__ann=setTimeout(()=>a.style.display="none",3000)}
-async function poll(){if(offline)return;try{let j=await rq("/api/chat?since=0");if(j.announcement&&j.announcement.time>lastAnn){lastAnn=j.announcement.time;notify(j.announcement.text)}}catch{}}
-function navBtn(id,label){let b=document.createElement("button");b.textContent=label;b.dataset.t=id;b.style="flex:1 1 20%;padding:6px 4px;background:#263746;color:#fff;border:0;border-radius:6px;cursor:pointer;font-size:11px";return b}
-function setup(){nav.innerHTML="";[["g","🎮 Library"],["c","💬 Chat"],["f","👥 Friends"],["k","🔑 Key"]].forEach(([id,label])=>{let b=navBtn(id,label);b.onclick=()=>{if(id==="g")library();if(id==="c")chat();if(id==="f")friends();if(id==="k")keyUI()};nav.appendChild(b)})}
+javascript:(function() {
+  const token = localStorage.getItem("token");
+  if (!token) return alert("Please log in first!");
 
-function library(){
-  main.innerHTML=`<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
-    <button id=pl style="padding:16px 6px;background:#202c38;border:0;border-radius:8px;color:#fff;cursor:pointer;font-weight:bold">🎯<br>Plinko</button>
-    <button id=cc style="padding:16px 6px;background:#202c38;border:0;border-radius:8px;color:#fff;cursor:pointer;font-weight:bold">🍪<br>Cookie Clicker</button>
-    <button id=lk style="padding:16px 6px;background:#202c38;border:0;border-radius:8px;color:#fff;cursor:pointer;font-weight:bold">🔓<br>Pick the Lock</button>
-    <button id=br style="padding:16px 6px;background:#202c38;border:0;border-radius:8px;color:#fff;cursor:pointer;font-weight:bold">🧠<br>Brainrots</button>
-  </div>`;
-  main.querySelector("#pl").onclick=plinkoGame;
-  main.querySelector("#cc").onclick=cookieClicker;
-  main.querySelector("#lk").onclick=lockGame;
-  main.querySelector("#br").onclick=brainrotsMenu;
-}
+  const API = window.location.origin;
 
-function backBtn(){return `<button id=bk style="margin-bottom:8px;padding:5px 10px;background:#425565;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:11px">← Back</button>`}
-function bindBack(){main.querySelector("#bk").onclick=library}
-function brainrotsMenu(){main.innerHTML=backBtn()+`<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px"><button id=r style="padding:14px 6px;background:#202c38;border:0;border-radius:8px;color:#fff;cursor:pointer">🎲<br>RNG</button><button id=fz style="padding:14px 6px;background:#202c38;border:0;border-radius:8px;color:#fff;cursor:pointer">🧪<br>Fuse</button></div><div id=x style="margin-top:10px"></div>`;bindBack();main.querySelector("#r").onclick=brng;main.querySelector("#fz").onclick=fuseUI;brng()}
-async function brng(){const x=main.querySelector("#x")||main;let j=await rq("/api/animals"),u=(await rq("/api/me")).user;x.innerHTML=`<div style="background:#202c38;padding:12px;border-radius:8px;text-align:center"><p style="margin:0 0 4px;font-size:12px">Luck: ×${j.luck}</p><p style="margin:0 0 8px;font-size:11px;opacity:.8">Inventory: <span id=cap>${(u.inventory||[]).length}/${MAX_INV}</span></p><button id=roll style="font-size:16px;padding:8px 22px;background:#4cae61;color:#fff;border:0;border-radius:6px;cursor:pointer">ROLL</button><div id=o style="margin-top:10px;font-size:12px"></div></div><h4 style="font-size:12px;margin:10px 0 4px">Inventory</h4><div id=i></div>`;const draw=async()=>{let u=(await rq("/api/me")).user;x.querySelector("#cap").textContent=(u.inventory||[]).length+"/"+MAX_INV;x.querySelector("#i").innerHTML=(u.inventory||[]).map(a=>`<div style="padding:6px;margin:3px 0;background:#202c38;border-radius:5px;font-size:11px">${esc(a.DisplayName||a.Name)} · <b>${esc(a.Rarity)}</b></div>`).join("")||"<div style='font-size:11px;opacity:.7'>No brainrots yet.</div>"};x.querySelector("#roll").onclick=async()=>{try{let z=await rq("/api/roll",{method:"POST",body:"{}"});x.querySelector("#o").innerHTML=`You rolled <b>${esc(z.item.DisplayName||z.item.Name)}</b> · ${esc(z.item.Rarity)}`;draw()}catch(e){alert(e.message)}};draw()}
-async function fuseUI(){const x=main.querySelector("#x")||main,u=(await rq("/api/me")).user,inv=u.inventory||[];x.innerHTML=`<div style="background:#202c38;padding:10px;border-radius:8px"><h4 style="text-align:center;margin:0 0 8px;font-size:12px">Pick 4 to Fuse</h4><div id=s style="display:grid;grid-template-columns:repeat(2,1fr);gap:5px"></div><button id=f style="display:block;margin:10px auto 0;padding:8px 30px;background:#4cae61;color:#fff;border:0;border-radius:6px;cursor:pointer;font-size:12px">FUSE</button></div>`;let chosen=[];function draw(){x.querySelector("#s").innerHTML=inv.map((a,i)=>`<div data-i="${i}" style="background:#243340;border:2px solid ${chosen.includes(i)?"#fff":"#425565"};padding:6px;text-align:center;cursor:pointer;border-radius:5px;font-size:10px"><b>${esc(a.DisplayName||a.Name)}</b><br>${esc(a.Rarity)}</div>`).join("");x.querySelectorAll("#s>div").forEach(q=>q.onclick=()=>{let i=+q.dataset.i;if(chosen.includes(i))chosen=chosen.filter(v=>v!==i);else if(chosen.length<4)chosen.push(i);draw()})}x.querySelector("#f").onclick=async()=>{if(chosen.length!==4)return alert("Select 4 brainrots.");try{let z=await rq("/api/fuse",{method:"POST",body:JSON.stringify({ids:chosen.map(i=>inv[i].id)})});alert("Fusion complete: "+(z.result.DisplayName||z.result.Name));fuseUI()}catch(e){alert(e.message)}};draw()}
-async function cookieClicker(){let u=(await rq("/api/me")).user;let cookies=u.cookieData?.count||0,perClick=u.cookieData?.perClick||1;main.innerHTML=backBtn()+`<div style="text-align:center"><div id=cnt style="font-size:22px;font-weight:bold;margin-bottom:10px">${cookies} cookies</div><button id=cook style="font-size:60px;background:none;border:0;cursor:pointer">🍪</button><div style="margin-top:14px;display:grid;gap:6px"><button id=up1 style="padding:8px;background:#202c38;border:0;border-radius:6px;color:#fff;cursor:pointer;font-size:11px">Upgrade Click (+1/click) — ${50*perClick} cookies</button></div></div>`;bindBack();const cnt=main.querySelector("#cnt"),up1=main.querySelector("#up1");let saveTimer=null;const queueSave=()=>{clearTimeout(saveTimer);saveTimer=setTimeout(()=>{rq("/api/game/cookie",{method:"POST",body:JSON.stringify({count:cookies,perClick})}).catch(()=>{})},600)};main.querySelector("#cook").onclick=()=>{cookies+=perClick;cnt.textContent=cookies+" cookies";queueSave()};up1.onclick=()=>{if(cookies>=50*perClick){cookies-=50*perClick;perClick+=1;cnt.textContent=cookies+" cookies";up1.textContent=`Upgrade Click (+1/click) — ${50*perClick} cookies`;queueSave()}else alert("Not enough cookies.")}}
-function plinkoGame(){main.innerHTML=backBtn()+`<div style="text-align:center"><canvas id=pc width=320 height=280 style="background:#0d1319;border-radius:8px;max-width:100%"></canvas><div id=ps style="margin-top:6px;font-size:12px">Best: ...</div><button id=drop style="margin-top:8px;padding:8px 20px;background:#4cae61;color:#fff;border:0;border-radius:6px;cursor:pointer">DROP BALL</button></div>`;bindBack();const ps=main.querySelector("#ps"),cv=main.querySelector("#pc"),ctx=cv.getContext("2d");const ROWS=8,W=320,H=280,SLOTS=9,MULT=[0.2,0.5,1,2,5,2,1,0.5,0.2];
-function pegPositions(){let pegs=[];for(let r=0;r<ROWS;r++){let cnt=r+2,gap=W/(cnt+1);for(let c=0;c<cnt;c++)pegs.push({x:(c+1)*gap,y:30+r*((H-60)/ROWS)});}return pegs}
-const pegs=pegPositions();
-function drawBoard(ballX,ballY){ctx.clearRect(0,0,W,H);ctx.fillStyle="#45607a";pegs.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,3,0,7);ctx.fill()});let slotW=W/SLOTS;for(let i=0;i<SLOTS;i++){ctx.fillStyle="#243340";ctx.fillRect(i*slotW,H-24,slotW-2,24);ctx.fillStyle="#8fd694";ctx.font="10px Arial";ctx.textAlign="center";ctx.fillText("x"+MULT[i],i*slotW+slotW/2,H-8)}if(ballX!==undefined){ctx.fillStyle="#ffd580";ctx.beginPath();ctx.arc(ballX,ballY,5,0,7);ctx.fill()}}
-drawBoard();
-async function refreshBest(){try{let u=(await rq("/api/me")).user;ps.textContent="Best: x"+(u.stats?.plinkoBest||0)}catch{ps.textContent="Best: n/a"}}
-refreshBest();
-main.querySelector("#drop").onclick=()=>{let x=W/2,y=10,step=0;const iv=setInterval(()=>{step++;x+=(Math.random()-0.5)*14;x=Math.max(6,Math.min(W-6,x));y+=(H-40)/40;drawBoard(x,y);if(step>=40){clearInterval(iv);let slotW=W/SLOTS,slot=Math.max(0,Math.min(SLOTS-1,Math.floor(x/slotW)));let mult=MULT[slot];rq("/api/stats",{method:"POST",body:JSON.stringify({game:"plinko",score:mult})}).then(refreshBest).catch(()=>{});alert("Landed on x"+mult)}},30)}}
-function lockGame(){main.innerHTML=backBtn()+`<div style="text-align:center"><div style="position:relative;height:24px;background:#0d1319;border-radius:6px;margin:10px 0"><div id=zone style="position:absolute;top:0;height:100%;background:#4cae61;opacity:.5;border-radius:6px"></div><div id=needle style="position:absolute;top:0;width:3px;height:100%;background:#fff"></div></div><div id=score style="font-size:14px;margin:6px 0">Round 1/5 · Score: 0</div><div id=best style="font-size:11px;opacity:.7">Best: ...</div><button id=pick style="margin-top:10px;padding:8px 20px;background:#7b2cbf;color:#fff;border:0;border-radius:6px;cursor:pointer">PICK</button></div>`;bindBack();const zoneEl=main.querySelector("#zone"),needleEl=main.querySelector("#needle"),scoreEl=main.querySelector("#score"),bestEl=main.querySelector("#best"),pickBtn=main.querySelector("#pick");let round=1,score=0,pos=0,dir=1,zoneStart=0,zoneW=0,running=true;
-function newZone(){zoneW=30+Math.random()*15;zoneStart=Math.random()*(100-zoneW);zoneEl.style.left=zoneStart+"%";zoneEl.style.width=zoneW+"%"}
-newZone();
-const iv=setInterval(()=>{if(!running)return;pos+=dir*3;if(pos>=100){pos=100;dir=-1}if(pos<=0){pos=0;dir=1}needleEl.style.left=pos+"%"},20);
-async function refreshBest(){try{let u=(await rq("/api/me")).user;bestEl.textContent="Best: "+(u.stats?.lockBest||0)}catch{bestEl.textContent="Best: n/a"}}
-refreshBest();
-pickBtn.onclick=async()=>{if(!running)return;let hit=pos>=zoneStart&&pos<=zoneStart+zoneW;if(hit)score+=Math.round(100/zoneW*10);round++;if(round>5){running=false;clearInterval(iv);scoreEl.textContent=`Final Score: ${score}`;pickBtn.disabled=true;try{await rq("/api/stats",{method:"POST",body:JSON.stringify({game:"lock",score})});refreshBest()}catch{}}else{scoreEl.textContent=`Round ${round}/5 · Score: ${score}`;newZone()}}}
-async function chat(){if(offline){main.innerHTML="<div style='font-size:12px;opacity:.8;text-align:center;padding:20px'>Chat needs an internet connection.</div>";return}main.innerHTML=`<div id=q style="height:280px;overflow:auto;background:#0d1319;padding:8px;border-radius:6px;font-size:11px"></div><div style="display:flex;gap:6px;margin-top:6px"><input id=t placeholder="Message..." maxlength=300 style="flex:1;padding:6px;font-size:11px;border-radius:4px;border:1px solid #45607a;background:#1c2733;color:#fff"><button id=s style="padding:6px 10px;background:#4cae61;color:#fff;border:0;border-radius:4px;cursor:pointer">Send</button></div>`;let since=0;async function ref(){try{let j=await rq("/api/chat?since="+since);j.messages.forEach(x=>{since=Math.max(since,x.time);let d=document.createElement("div");d.innerHTML="<b>"+esc(x.username)+":</b> "+esc(x.text);main.querySelector("#q").appendChild(d)});if(j.announcement&&j.announcement.time>lastAnn){lastAnn=j.announcement.time;notify(j.announcement.text)}}catch{}}main.querySelector("#s").onclick=async()=>{let t=main.querySelector("#t");if(t.value.trim()){await rq("/api/chat",{method:"POST",body:JSON.stringify({text:t.value})});t.value="";ref()}};ref();clearInterval(window.__chat);window.__chat=setInterval(ref,1500)}
-async function friends(){if(offline){main.innerHTML="<div style='font-size:12px;opacity:.8;text-align:center;padding:20px'>Friends need an internet connection.</div>";return}main.innerHTML=`<div style="display:flex;gap:6px;margin-bottom:8px"><input id=u placeholder="Username" style="flex:1;padding:6px;font-size:11px;border-radius:4px;border:1px solid #45607a;background:#1c2733;color:#fff"><button id=a style="padding:6px 10px;background:#4cae61;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:11px">Add</button></div><div id=l></div><h4 style="font-size:11px">Requests</h4><div id=r></div>`;async function draw(){let j=await rq("/api/friends");main.querySelector("#l").innerHTML=j.friends.map(x=>`<div style="padding:6px;background:#202c38;margin:3px 0;border-radius:5px;font-size:11px">${esc(x.username)}</div>`).join("")||"<div style='font-size:11px;opacity:.7'>No friends yet.</div>";main.querySelector("#r").innerHTML=j.requests.map(x=>`<div style="padding:4px;font-size:11px">${esc(x.from)} <button class=ac data-i="${x.id}">✓</button> <button class=dc data-i="${x.id}">✕</button></div>`).join("");main.querySelectorAll(".ac").forEach(b=>b.onclick=async()=>{await rq("/api/friends/respond",{method:"POST",body:JSON.stringify({id:b.dataset.i,accept:true})});draw()});main.querySelectorAll(".dc").forEach(b=>b.onclick=async()=>{await rq("/api/friends/respond",{method:"POST",body:JSON.stringify({id:b.dataset.i,accept:false})});draw()})}main.querySelector("#a").onclick=async()=>{try{await rq("/api/friends/request",{method:"POST",body:JSON.stringify({username:main.querySelector("#u").value})})}catch(e){alert(e.message)}draw()};draw()}
-async function keyUI(){let u=(await rq("/api/me")).user;main.innerHTML=`<div style="background:#202c38;padding:12px;border-radius:8px;text-align:center"><p style="margin:0 0 8px;font-size:12px">Status: <b>${u.keyRedeemed?"Active key":"No key redeemed"}</b></p><input id=k placeholder="Enter key" style="width:90%;padding:7px;margin:4px 0;border-radius:4px;border:1px solid #45607a;background:#1c2733;color:#fff"><br><button id=rd style="margin-top:6px;padding:7px 16px;background:#7b2cbf;color:#fff;border:0;border-radius:5px;cursor:pointer">Redeem</button><div id=o style="margin-top:8px;font-size:11px;color:#ff8080"></div></div>`;main.querySelector("#rd").onclick=async()=>{try{await rq("/api/redeem",{method:"POST",body:JSON.stringify({key:main.querySelector("#k").value})});keyUI()}catch(e){main.querySelector("#o").textContent=e.message}}}
-async function boot(){if(token)try{let x=await rq("/api/me");wrap.querySelector("#user").textContent=x.user.username+(offline?" (offline)":"");setup();library();poll();if(!offline)setInterval(poll,1000);return}catch{localStorage.removeItem("ultra_auth");token=null}
-main.innerHTML=`<div style="text-align:center"><h3 style="font-size:14px">Account</h3><input id=lu placeholder="Username" style="width:90%;padding:7px;margin:4px 0;border-radius:4px;border:1px solid #45607a;background:#1c2733;color:#fff"><br><input id=lp type=password placeholder="Password (6+ chars)" style="width:90%;padding:7px;margin:4px 0;border-radius:4px;border:1px solid #45607a;background:#1c2733;color:#fff"><br><input id=lk placeholder="Key (required to register)" style="width:90%;padding:7px;margin:4px 0;border-radius:4px;border:1px solid #45607a;background:#1c2733;color:#fff"><br><button id=lg style="margin-top:6px;padding:7px 16px;background:#4cae61;color:#fff;border:0;border-radius:5px;cursor:pointer">Login</button><button id=rg style="margin-top:6px;padding:7px 16px;background:#3b6ea5;color:#fff;border:0;border-radius:5px;cursor:pointer">Register</button><div id=o style="margin-top:8px;font-size:11px;color:#ff8080"></div></div>`;
-const act=async(mode)=>{try{let payload={username:main.querySelector("#lu").value,password:main.querySelector("#lp").value};if(mode==="register")payload.key=main.querySelector("#lk").value;let x=await rq("/api/"+mode,{method:"POST",body:JSON.stringify(payload)});if(x.token){token=x.token;if(!offline)localStorage.setItem("ultra_auth",token);boot()}}catch(e){main.querySelector("#o").textContent=e.message}};
-main.querySelector("#lg").onclick=()=>act("login");main.querySelector("#rg").onclick=()=>act("register")}
-let minimized=false;wrap.querySelector("#u_min").onclick=()=>{minimized=!minimized;const c=[nav,main];if(minimized){c.forEach(el=>el.style.display="none");wrap.style.height="auto"}else{nav.style.display="flex";main.style.display="block";wrap.style.height="480px"}};
-let isD=false,ox,oy;wrap.querySelector("#u_h").onmousedown=e=>{isD=true;ox=e.clientX-wrap.offsetLeft;oy=e.clientY-wrap.offsetTop};document.onmousemove=e=>{if(isD){wrap.style.left=(e.clientX-ox)+"px";wrap.style.top=(e.clientY-oy)+"px"}};document.onmouseup=()=>isD=false;
-wrap.querySelector("#u_x").onclick=()=>{clearInterval(window.__chat);if(offline)exportOffline();wrap.remove();window.__brainrotApp=false};
-boot();
+  // 1. Inject Styles
+  const style = document.createElement("style");
+  style.innerHTML = `
+    .tm-overlay { position: fixed; top: 50px; right: 20px; z-index: 999999; font-family: Arial, sans-serif; }
+    .trade-machine-card { width: 360px; background: #1c2333; border: 3px solid #000; border-radius: 8px; overflow: hidden; color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+    .tm-header { background: #d32f2f; padding: 8px 12px; display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; }
+    .tm-title-box h3 { margin: 0; font-size: 16px; font-weight: bold; text-shadow: 1px 1px 0 #000; color: #fff; }
+    .tm-subtext { font-size: 10px; color: #ffcdd2; margin-top: 2px; }
+    .tm-close-btn { background: #b71c1c; border: 1px solid #000; color: #fff; font-weight: bold; width: 22px; height: 22px; cursor: pointer; border-radius: 3px; display: flex; align-items: center; justify-content: center; }
+    .tm-tabs { display: flex; background: #0f141d; padding: 6px; gap: 6px; }
+    .tm-tab-btn { flex: 1; padding: 8px 0; text-align: center; font-weight: bold; font-size: 13px; border: 2px solid #000; border-radius: 4px; cursor: pointer; color: #fff; text-shadow: 1px 1px 0 #000; }
+    .tm-tab-server { background: #4caf50; }
+    .tm-tab-friends { background: #2196f3; }
+    .tm-tab-search { background: #29b6f6; }
+    .tm-tab-btn.active { outline: 2px solid #fff; }
+    .tm-body { padding: 12px; }
+    .tm-search-input { width: 100%; padding: 8px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #fff; box-sizing: border-box; margin-bottom: 10px; font-size: 12px; }
+    .tm-player-list { display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; }
+    .tm-player-row { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; }
+    .tm-player-info { display: flex; align-items: center; gap: 10px; }
+    .tm-avatar { width: 36px; height: 36px; background: #333; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 18px; overflow: hidden; }
+    .tm-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .tm-user-details { display: flex; flex-direction: column; }
+    .tm-username { font-weight: bold; font-size: 13px; color: #fff; }
+    .tm-status { font-size: 10px; color: #4caf50; display: flex; align-items: center; gap: 4px; }
+    .tm-status-dot { width: 6px; height: 6px; background: #4caf50; border-radius: 50%; }
+    .tm-send-btn { background: #4caf50; border: 1px solid #000; color: #fff; font-weight: bold; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 12px; text-shadow: 1px 1px 0 #000; }
+    .tm-send-btn.sent { background: #1b5e20; cursor: default; }
+
+    /* Trade Request Popups */
+    .trade-popup { position: fixed; top: 20px; right: 20px; background-color: #3b2822; border: 3px solid #1a100d; border-radius: 12px; padding: 12px 16px; width: 300px; box-shadow: 0 8px 16px rgba(0,0,0,0.6); color: #fff; z-index: 999999; }
+    .trade-popup-title { color: #c0a2f8; font-size: 18px; font-weight: bold; margin-bottom: 8px; text-shadow: 1px 1px 2px #000; }
+    .trade-popup-body { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .trade-avatar { width: 48px; height: 48px; border-radius: 8px; background-color: #ff3b3b; display: flex; justify-content: center; align-items: center; font-size: 24px; flex-shrink: 0; overflow: hidden; }
+    .trade-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .trade-message { font-size: 15px; font-weight: bold; line-height: 1.2; color: #fff; text-shadow: 1px 1px 2px #000; }
+    .trade-buttons { display: flex; gap: 10px; }
+    .trade-btn { flex: 1; padding: 8px 0; border: 2px solid #000; border-radius: 6px; font-size: 14px; font-weight: bold; color: #fff; cursor: pointer; text-shadow: 1px 1px 2px #000; }
+    .trade-btn-accept { background-color: #00c853; }
+    .trade-btn-decline { background-color: #ff3d00; }
+  `;
+  document.head.appendChild(style);
+
+  // 2. Render Trade Machine UI
+  if (!document.getElementById("trade-machine-wrapper")) {
+    const wrap = document.createElement("div");
+    wrap.id = "trade-machine-wrapper";
+    wrap.className = "tm-overlay";
+    wrap.innerHTML = `
+      <div class="trade-machine-card">
+        <div class="tm-header">
+          <div class="tm-title-box">
+            <h3>Trade Machine</h3>
+            <div class="tm-subtext">Select a person to send a trade request to.</div>
+          </div>
+          <button class="tm-close-btn" onclick="document.getElementById('trade-machine-wrapper').remove()">X</button>
+        </div>
+        <div class="tm-tabs">
+          <button class="tm-tab-btn tm-tab-server active" id="tm-tab-srv">Server</button>
+          <button class="tm-tab-btn tm-tab-friends" id="tm-tab-frnd">Friends</button>
+          <button class="tm-tab-btn tm-tab-search" id="tm-tab-src">Search</button>
+        </div>
+        <div class="tm-body">
+          <input type="text" id="tm-search-box" class="tm-search-input" placeholder="Search usernames..." />
+          <div class="tm-player-list" id="tm-online-list"></div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrap);
+
+    let sentTrades = new Set();
+    async function fetchOnlinePlayers() {
+      try {
+        const res = await fetch("/api/users/online");
+        const players = await res.json();
+        const searchVal = document.getElementById("tm-search-box").value.toLowerCase();
+        const listEl = document.getElementById("tm-online-list");
+        listEl.innerHTML = "";
+
+        players.filter(p => p.username.toLowerCase().includes(searchVal)).forEach(player => {
+          const isSent = sentTrades.has(player.username);
+          const row = document.createElement("div");
+          row.className = "tm-player-row";
+          row.innerHTML = `
+            <div class="tm-player-info">
+              <div class="tm-avatar">${player.avatarUrl ? `<img src="${player.avatarUrl}"/>` : '👤'}</div>
+              <div class="tm-user-details">
+                <span class="tm-username">@${player.username}</span>
+                <span class="tm-status"><span class="tm-status-dot"></span> Online</span>
+              </div>
+            </div>
+            <button class="tm-send-btn ${isSent ? 'sent' : ''}" id="btn-send-${player.username}">
+              ${isSent ? 'SENT!' : 'SENT!'}
+            </button>
+          `;
+          listEl.appendChild(row);
+
+          row.querySelector(`#btn-send-${player.username}`).onclick = async () => {
+            await fetch("/api/trade/request", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+              body: JSON.stringify({ targetUser: player.username })
+            });
+            sentTrades.add(player.username);
+            fetchOnlinePlayers();
+          };
+        });
+      } catch (e) {}
+    }
+
+    document.getElementById("tm-search-box").oninput = fetchOnlinePlayers;
+    setInterval(fetchOnlinePlayers, 3000);
+    fetchOnlinePlayers();
+  }
+
+  // 3. Trade Request Auto-Notifier Loop
+  let currentPendingId = null;
+  async function checkPendingTrades() {
+    try {
+      const res = await fetch("/api/trade/pending", { headers: { "Authorization": "Bearer " + token } });
+      const data = await res.json();
+      if (data.trade && data.trade.id !== currentPendingId) {
+        currentPendingId = data.trade.id;
+        showNotification(data.trade);
+      }
+    } catch (e) {}
+  }
+
+  function showNotification(trade) {
+    const existing = document.getElementById("trade-notif");
+    if (existing) existing.remove();
+
+    const popup = document.createElement("div");
+    popup.id = "trade-notif";
+    popup.className = "trade-popup";
+    const avatarHtml = trade.senderAvatar ? `<img src="${trade.senderAvatar}"/>` : "🤠";
+
+    popup.innerHTML = `
+      <div class="trade-popup-title">Trade Request</div>
+      <div class="trade-popup-body">
+        <div class="trade-avatar">${avatarHtml}</div>
+        <div class="trade-message">@${trade.a} wants to trade with you</div>
+      </div>
+      <div class="trade-buttons">
+        <button class="trade-btn trade-btn-accept" id="trade-accept-btn">Accept</button>
+        <button class="trade-btn trade-btn-decline" id="trade-decline-btn">Decline</button>
+      </div>
+    `;
+    document.body.appendChild(popup);
+
+    document.getElementById("trade-accept-btn").onclick = async () => {
+      await fetch("/api/trade/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+        body: JSON.stringify({ tradeId: trade.id, action: "accept_request" })
+      });
+      popup.remove();
+    };
+
+    document.getElementById("trade-decline-btn").onclick = async () => {
+      await fetch("/api/trade/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+        body: JSON.stringify({ tradeId: trade.id, action: "decline" })
+      });
+      popup.remove();
+    };
+  }
+
+  setInterval(checkPendingTrades, 3000);
+
+  // 4. Admin Panel Overlay
+  if (!window.__adminPanel) {
+    window.__adminPanel = true;
+    const SALT = "ultra_brainrot_v1";
+    function fnv1a(str) { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = (h * 0x01000193) >>> 0 } return h >>> 0 }
+    const DUR_CODES = { hour: "1", day: "2", week: "3", month: "4", permanent: "0" };
+    function genOfflineKey(duration, base) { let code = DUR_CODES[duration]; let core = base ? base.trim().toUpperCase().replace(/[^A-Z0-9]/g, "") : Math.random().toString(16).slice(2, 8).toUpperCase(); let sum = fnv1a(code + core + SALT).toString(16).toUpperCase().padStart(8, "0").slice(0, 6); return `OFF-${code}-${core}-${sum}` }
+
+    const adminWrap = document.createElement("div");
+    adminWrap.style = "position:fixed;top:60px;left:60px;width:340px;background:#202b38;color:#fff;font-family:Arial,sans-serif;border-radius:10px;box-shadow:0 10px 40px #000;z-index:2147483647;border:2px solid #45607a;overflow:hidden";
+    adminWrap.innerHTML = `
+      <div id=h style="cursor:move;padding:10px 14px;background:#2c3e50;font-weight:bold;font-size:14px;display:flex;justify-content:space-between;align-items:center">ADMIN CONTROLS <span id=x style="cursor:pointer">✕</span></div>
+      <div style="padding:16px">
+        <h3 style="font-size:12px;margin:0 0 6px">Global Announcement</h3>
+        <input id=a maxlength=200 placeholder="Announcement text" style="width:100%;padding:8px;box-sizing:border-box;border-radius:4px;border:1px solid #45607a;background:#1c2733;color:#fff;font-size:12px">
+        <button id=as style="width:100%;margin-top:6px;padding:8px;background:#4cae61;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px">ANNOUNCE FOR 3 SECONDS</button>
+        
+        <h3 style="font-size:12px;margin:14px 0 6px">Give Brainrot to User</h3>
+        <input id=gUser placeholder="Target Username" style="width:100%;padding:8px;box-sizing:border-box;border-radius:4px;border:1px solid #45607a;background:#1c2733;color:#fff;font-size:12px">
+        <input id=gItem placeholder="Brainrot Name" style="width:100%;padding:8px;margin-top:4px;box-sizing:border-box;border-radius:4px;border:1px solid #45607a;background:#1c2733;color:#fff;font-size:12px">
+        <button id=gSend style="width:100%;margin-top:6px;padding:8px;background:#9c27b0;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px">GRANT ITEM</button>
+
+        <h3 style="font-size:12px;margin:14px 0 6px">Manage Permanent Admins</h3>
+        <input id=admUser placeholder="Username" style="width:100%;padding:8px;box-sizing:border-box;border-radius:4px;border:1px solid #45607a;background:#1c2733;color:#fff;font-size:12px">
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button id=admAdd style="flex:1;padding:8px;background:#28a745;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px">ADD ADMIN</button>
+          <button id=admRem style="flex:1;padding:8px;background:#dc3545;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px">REMOVE ADMIN</button>
+        </div>
+
+        <h3 style="font-size:12px;margin:14px 0 6px">RNG Luck</h3>
+        <div style="display:flex;gap:6px">
+          <input id=l type=number min=1 value=2 placeholder="Multiplier" style="width:50%;padding:8px;border-radius:4px;border:1px solid #45607a;background:#1c2733;color:#fff;font-size:12px">
+          <input id=d type=number min=1 value=60 placeholder="Seconds" style="width:50%;padding:8px;border-radius:4px;border:1px solid #45607a;background:#1c2733;color:#fff;font-size:12px">
+        </div>
+        <button id=ls style="width:100%;margin-top:6px;padding:8px;background:#4cae61;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px">ACTIVATE LUCK</button>
+        
+        <h3 style="font-size:12px;margin:14px 0 6px">Generate Key</h3>
+        <select id=t style="width:100%;padding:8px;border-radius:4px;border:1px solid #45607a;background:#1c2733;color:#fff;font-size:12px">
+          <option value=hour>1 Hour</option><option value=day>1 Day</option><option value=week>7 Days</option><option value=month>30 Days</option><option value=permanent>Permanent</option>
+        </select>
+        <input id=ck placeholder="Custom key (optional)" style="width:100%;padding:8px;margin-top:6px;border-radius:4px;border:1px solid #45607a;background:#1c2733;color:#fff;font-size:12px;box-sizing:border-box">
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button id=g style="flex:1;padding:8px;background:#7b2cbf;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px">SERVER KEY</button>
+          <button id=go style="flex:1;padding:8px;background:#a3752c;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px">OFFLINE KEY</button>
+        </div>
+        <div id=keyOut style="display:none;margin-top:10px;padding:10px;background:#0d1319;border-radius:6px;text-align:center">
+          <div id=keyLabel style="font-size:10px;opacity:.7;margin-bottom:4px">GENERATED KEY</div>
+          <div id=keyVal style="font-size:14px;font-weight:bold;word-break:break-all;color:#8fd694"></div>
+          <button id=cpk style="margin-top:6px;padding:5px 10px;background:#3b6ea5;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:11px">Copy</button>
+        </div>
+        <pre id=o style="white-space:pre-wrap;font-size:11px;margin-top:10px;opacity:.85"></pre>
+      </div>`;
+    document.body.appendChild(adminWrap);
+
+    const post = async (p, b) => {
+      let r = await fetch(API + p, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token }, body: JSON.stringify(b) });
+      return r.json();
+    };
+
+    adminWrap.querySelector("#as").onclick = async () => {
+      const o = adminWrap.querySelector("#o"), text = adminWrap.querySelector("#a").value;
+      let x = await post("/api/admin/announcement", { text });
+      o.textContent = x.error || "Announcement sent.";
+      if (!x.error) {
+        clearTimeout(window.__annClear);
+        window.__annClear = setTimeout(async () => { await post("/api/admin/announcement", { text: "" }); o.textContent = "Announcement cleared."; }, 3000);
+      }
+    };
+
+    adminWrap.querySelector("#gSend").onclick = async () => {
+      const o = adminWrap.querySelector("#o"), username = adminWrap.querySelector("#gUser").value, brainrotName = adminWrap.querySelector("#gItem").value;
+      let x = await post("/api/admin/give", { username, brainrotName });
+      o.textContent = x.error || `Granted ${brainrotName} to ${username}!`;
+    };
+
+    adminWrap.querySelector("#admAdd").onclick = async () => {
+      const o = adminWrap.querySelector("#o"), username = adminWrap.querySelector("#admUser").value;
+      let x = await post("/api/admin/manage-admin", { action: "add", username });
+      o.textContent = x.error || `Added admin: ${username}`;
+    };
+
+    adminWrap.querySelector("#admRem").onclick = async () => {
+      const o = adminWrap.querySelector("#o"), username = adminWrap.querySelector("#admUser").value;
+      let x = await post("/api/admin/manage-admin", { action: "remove", username });
+      o.textContent = x.error || `Removed admin: ${username}`;
+    };
+
+    adminWrap.querySelector("#ls").onclick = async () => {
+      const o = adminWrap.querySelector("#o");
+      let x = await post("/api/admin/luck", { multiplier: +adminWrap.querySelector("#l").value, seconds: +adminWrap.querySelector("#d").value });
+      o.textContent = x.error || "Luck activated.";
+    };
+
+    adminWrap.querySelector("#g").onclick = async () => {
+      const o = adminWrap.querySelector("#o"), ko = adminWrap.querySelector("#keyOut"), kv = adminWrap.querySelector("#keyVal"), kl = adminWrap.querySelector("#keyLabel"), custom = adminWrap.querySelector("#ck").value.trim();
+      let payload = { duration: adminWrap.querySelector("#t").value };
+      if (custom) payload.key = custom;
+      let x = await post("/api/admin/key", payload);
+      if (x.error) { o.textContent = x.error; ko.style.display = "none"; }
+      else { o.textContent = ""; kl.textContent = "SERVER KEY"; kv.textContent = x.key; ko.style.display = "block"; }
+    };
+
+    adminWrap.querySelector("#go").onclick = () => {
+      const o = adminWrap.querySelector("#o"), ko = adminWrap.querySelector("#keyOut"), kv = adminWrap.querySelector("#keyVal"), kl = adminWrap.querySelector("#keyLabel"), custom = adminWrap.querySelector("#ck").value.trim();
+      let key = genOfflineKey(adminWrap.querySelector("#t").value, custom);
+      o.textContent = "This key works in Offline Mode only, without needing the server.";
+      kl.textContent = "OFFLINE KEY"; kv.textContent = key; ko.style.display = "block";
+    };
+
+    adminWrap.querySelector("#cpk").onclick = () => {
+      navigator.clipboard.writeText(adminWrap.querySelector("#keyVal").textContent);
+      adminWrap.querySelector("#o").textContent = "Key copied.";
+    };
+
+    let isD = false, ox, oy;
+    adminWrap.querySelector("#h").onmousedown = e => { isD = true; ox = e.clientX - adminWrap.offsetLeft; oy = e.clientY - adminWrap.offsetTop; };
+    document.onmousemove = e => { if (isD) { adminWrap.style.left = (e.clientX - ox) + "px"; adminWrap.style.top = (e.clientY - oy) + "px"; } };
+    document.onmouseup = () => isD = false;
+    adminWrap.querySelector("#x").onclick = () => { adminWrap.remove(); window.__adminPanel = false; };
+  }
 })();
