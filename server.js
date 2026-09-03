@@ -1,8 +1,6 @@
 const http = require("http"), fs = require("fs"), path = require("path"), crypto = require("crypto");
 const PORT = process.env.PORT || 3000, DB = process.env.DB_PATH || path.join(__dirname, "db.json"), PUBLIC = path.join(__dirname, "public");
-const MAX_INV = 10;
 
-// Dataset with full standard float decimals for weights
 const ANIMALS = [
   { "Name": "Dragon Cannelloni", "DisplayName": "Dragon Cannelloni", "Rarity": "Secret", "Price": 250000000000, "Generation": 250000000, "RNGWeight": 0.00000001 },
   { "Name": "Meowl", "DisplayName": "Meowl", "Rarity": "Secret", "Price": 375000000000, "Generation": 375000000, "RNGWeight": 0.000000008 },
@@ -23,7 +21,6 @@ const ANIMALS = [
   { "Name": "Chihuanini Tacoini", "DisplayName": "Chihuanini Tacoini", "Rarity": "Legendary", "Price": 10000000, "Generation": 50000, "RNGWeight": 0.0002 },
   { "Name": "Tripi Tropi Troppa Trippa", "DisplayName": "Tripi Tropi Troppa Trippa", "Rarity": "Legendary", "Price": 25000000, "Generation": 125000, "RNGWeight": 0.00008 }
 ];
-const RARITY_ORDER = ["Common", "Rare", "Epic", "Legendary", "Mythic", "Secret"];
 
 function load() { try { return JSON.parse(fs.readFileSync(DB, "utf8")) } catch { return { users: {}, keys: {}, sessions: {}, messages: [], requests: [], trades: {}, dm: [], admins: ["koolio"], announcement: null, luck: { multiplier: 1, expiresAt: 0 }, tictactoe: {} } } }
 let db = load();
@@ -37,18 +34,35 @@ function token() { return crypto.randomBytes(32).toString("hex") }
 function hash(p, s = crypto.randomBytes(16).toString("hex")) { return { s, h: crypto.scryptSync(p, s, 64).toString("hex") } }
 function check(p, o) { try { return crypto.timingSafeEqual(Buffer.from(crypto.scryptSync(p, o.s, 64).toString("hex"), "hex"), Buffer.from(o.h, "hex")) } catch { return false } }
 function auth(req) { let t = (req.headers.authorization || "").replace(/^Bearer /, ""); return db.sessions[t] && db.users[db.sessions[t]] }
-function clean(u) { return { username: u.username, displayName: u.displayName || u.username, avatarUrl: u.avatarUrl || null, createdAt: u.createdAt, keyRedeemed: !!u.keyRedeemed, redeemedKey: u.redeemedKey || null, keyCreatedAt: u.keyCreatedAt || null, keyExpiresAt: u.keyExpiresAt || null, inventory: u.inventory || [], stats: u.stats || { plinkoBest: 0, lockBest: 0, balance: 1000 }, cookieData: u.cookieData || { count: 0, perClick: 1 }, friends: u.friends || [], isKoolio: u.username.toLowerCase() === "koolio", isAdmin: db.admins.includes(u.username.toLowerCase()) } }
-function active(u) { return u && u.keyRedeemed && (!u.keyExpiresAt || u.keyExpiresAt > Date.now()) }
+function clean(u) { return { username: u.username, displayName: u.displayName || u.username, avatarUrl: u.avatarUrl || null, createdAt: u.createdAt, keyRedeemed: true, redeemedKey: u.redeemedKey || "PERM-ADMIN", keyCreatedAt: u.keyCreatedAt || Date.now(), keyExpiresAt: null, inventory: u.inventory || [], stats: u.stats || { plinkoBest: 0, lockBest: 0, balance: 1000000 }, cookieData: u.cookieData || { count: 0, perClick: 1 }, friends: u.friends || [], isKoolio: u.username.toLowerCase() === "koolio", isAdmin: db.admins.includes(u.username.toLowerCase()) } }
+function active(u) { return true }
 function weights() { let luck = (db.luck.expiresAt > Date.now() ? Math.max(1, Number(db.luck.multiplier) || 1) : 1); return { luck, animals: ANIMALS } }
 function roll() { let luck = weights().luck, arr = ANIMALS.map(a => [a, a.RNGWeight * Math.max(1, (a.Rarity === "Secret" ? luck : Math.sqrt(luck)))]), total = arr.reduce((s, x) => s + x[1], 0), r = Math.random() * total; for (const [a, w] of arr) { r -= w; if (r <= 0) return { ...a, id: id() } } return { ...ANIMALS[0], id: id() } }
 function validName(s) { return typeof s === "string" && /^[A-Za-z0-9_]{3,20}$/.test(s) }
+
+// Seed/Ensure Koolio Account
+if (!db.users["koolio"]) {
+  db.users["koolio"] = {
+    username: "koolio",
+    displayName: "Koolio",
+    avatarUrl: "",
+    password: hash("Kruzzer67*"),
+    createdAt: Date.now(),
+    keyRedeemed: true,
+    inventory: [],
+    stats: { plinkoBest: 0, lockBest: 0, balance: 10000000 },
+    cookieData: { count: 0, perClick: 1 },
+    friends: []
+  };
+  save();
+}
 
 function route(req, res) {
   const u = new URL(req.url, `http://${req.headers.host}`);
   if (req.method === "OPTIONS") { res.writeHead(204, { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Allow-Headers": "Content-Type, Authorization" }); return res.end() }
 
   // Authentication
-  if (u.pathname === "/api/register" && req.method === "POST") return body(req).then(b => { if (!validName(b.username) || typeof b.password !== "string" || b.password.length < 6) return json(res, 400, { error: "Invalid username or password" }); if (db.users[b.username]) return json(res, 409, { error: "Username already exists" }); let hp = hash(b.password), now = Date.now(); db.users[b.username] = { username: b.username, displayName: b.username, avatarUrl: "", password: hp, createdAt: now, keyRedeemed: false, inventory: [], stats: { plinkoBest: 0, lockBest: 0, balance: 1000 }, cookieData: { count: 0, perClick: 1 }, friends: [] }; let t = token(); db.sessions[t] = b.username; save(); json(res, 200, { token: t, user: clean(db.users[b.username]) }) })
+  if (u.pathname === "/api/register" && req.method === "POST") return body(req).then(b => { if (!validName(b.username) || typeof b.password !== "string" || b.password.length < 6) return json(res, 400, { error: "Invalid username or password" }); if (db.users[b.username]) return json(res, 409, { error: "Username already exists" }); let hp = hash(b.password), now = Date.now(); db.users[b.username] = { username: b.username, displayName: b.username, avatarUrl: "", password: hp, createdAt: now, keyRedeemed: true, inventory: [], stats: { plinkoBest: 0, lockBest: 0, balance: 1000 }, cookieData: { count: 0, perClick: 1 }, friends: [] }; let t = token(); db.sessions[t] = b.username; save(); json(res, 200, { token: t, user: clean(db.users[b.username]) }) })
   if (u.pathname === "/api/login" && req.method === "POST") return body(req).then(b => { let x = db.users[b.username]; if (!x || !check(b.password, x.password)) return json(res, 401, { error: "Invalid login" }); let t = token(); db.sessions[t] = x.username; save(); json(res, 200, { token: t, user: clean(x) }) })
   if (u.pathname === "/api/me" && req.method === "GET") { let user = auth(req); return user ? json(res, 200, { user: clean(user) }) : json(res, 401, { error: "Login required" }) }
   
@@ -140,37 +154,6 @@ function route(req, res) {
   // Games & RNG
   if (u.pathname === "/api/animals" && req.method === "GET") return json(res, 200, weights())
   if (u.pathname === "/api/roll" && req.method === "POST") { let user = auth(req); if (!active(user)) return json(res, 403, { error: "Active key required" }); let item = roll(); user.inventory.push(item); save(); return json(res, 200, { item, user: clean(user) }) }
-  
-  if (u.pathname === "/api/game/plinko" && req.method === "POST") return body(req).then(b => {
-    let user = auth(req); if (!user) return json(res, 401, { error: "Login required" });
-    user.stats = user.stats || { balance: 1000 };
-    let bet = Math.max(1, Number(b.bet) || 0);
-    if ((user.stats.balance || 0) < bet) return json(res, 400, { error: "Insufficient balance" });
-    user.stats.balance -= bet;
-    let multipliers = [0.2, 0.5, 1.0, 1.5, 3.0, 10.0];
-    let mult = multipliers[Math.floor(Math.random() * multipliers.length)];
-    let win = Math.floor(bet * mult);
-    user.stats.balance += win;
-    save(); json(res, 200, { bet, mult, win, balance: user.stats.balance });
-  })
-
-  // Tic-Tac-Toe Multiplayer
-  if (u.pathname === "/api/game/tictactoe/create" && req.method === "POST") {
-    let user = auth(req); if (!user) return json(res, 401, { error: "Login required" });
-    let gameId = "TTT-" + id();
-    db.tictactoe[gameId] = { id: gameId, playerX: user.username, playerO: null, board: Array(9).fill(null), turn: "X", winner: null };
-    save(); return json(res, 200, { game: db.tictactoe[gameId] });
-  }
-  if (u.pathname === "/api/game/tictactoe/move" && req.method === "POST") return body(req).then(b => {
-    let user = auth(req), g = db.tictactoe[b.gameId];
-    if (!user || !g) return json(res, 404, { error: "Game not found" });
-    if (!g.playerO && g.playerX !== user.username) { g.playerO = user.username; }
-    let symbol = g.playerX === user.username ? "X" : (g.playerO === user.username ? "O" : null);
-    if (!symbol || g.turn !== symbol || g.board[b.index] || g.winner) return json(res, 400, { error: "Invalid move" });
-    g.board[b.index] = symbol;
-    g.turn = symbol === "X" ? "O" : "X";
-    save(); json(res, 200, { game: g });
-  })
 
   // Serve Bookmarklet
   if (u.pathname === "/bookmarklet.js") {
